@@ -225,7 +225,7 @@ def run(params: Dict):
         print(textwrap.dedent(f"""
             Gene Expression Shape Before Subsetting With Response: {ge.shape}
             Gene Expression Shape After Subsetting With Response: {ge_sub.shape}
-            Mordred Shape Before MSubsetting With Response: {md.shape}
+            Mordred Shape Before Subsetting With Response: {md.shape}
             Mordred Shape After Subsetting With Response: {md_sub.shape}
             Response Shape Before Merging With Data: {rsp.shape}
             Response Shape After Merging With Data: {rsp_sub.shape}
@@ -320,30 +320,42 @@ def run(params: Dict):
         # The implementation of this step depends on the model.
         # --------------------------------
             
-        # Subset if setting true (for testing)
+        # Shuffle data / subset if setting true (for testing)
         if preprocess_subset_data:
             # Define the total number of samples and the proportions for each stage
             total_num_samples = 5000
             stage_proportions = {"train": 0.8, "val": 0.1, "test": 0.1}   # should represent proportions given
             # Shuffle with num_samples set by total and stage
-            rsp_sub = subset_data(rsp_sub, stage, total_num_samples, stage_proportions)
-            
+            rsp = subset_data(rsp, stage, total_num_samples, stage_proportions)
+
+        # Merging data
+        temp_start_time = time.time()
+        print("Merging Data")
+        merged_df = rsp.merge(ge_sc, on=params["canc_col_name"], how="inner")
+        merged_df = merged_df.merge(md_sc, on=params["drug_col_name"], how="inner")
+        merged_df = merged_df.sample(frac=1.0).reset_index(drop=True)
+
+        ydf = merged_df[['improve_sample_id', 'improve_chem_id', params["y_col_name"]]]
+        merged_df.drop(['improve_sample_id', 'improve_chem_id'], axis=1, inplace=True)
+
+        temp_end_time = time.time()
+        print_duration(f"Merging {stage.capitalize()} Dataframes", temp_start_time, temp_end_time)
+        print(stage.capitalize(), "merged data -->", merged_df.shape, "\n")
+
+
+        # Show dataframes if on debug mode
+        if preprocess_debug:
+            print("Final merged Data:")
+            print(merged_df.head())
+            print("")
 
         # Save final dataframe to the constructed file paths
         temp_start_time = time.time()
-        print(f"Saving {stage.capitalize()} Data (unmerged) to Parquet")
+        print(f"Saving {stage.capitalize()} Data to Parquet")
         # [Req] Build data name
         data_fname = frm.build_ml_data_name(params, stage)
-        ge_fname = f"ge_{data_fname}"
-        md_fname = f"md_{data_fname}"
-        rsp_fname = f"rsp_{data_fname}"
-        # [Req] Save dataframes
-        ge_sc.to_parquet(Path(params["ml_data_outdir"]) / ge_fname)
-        md_sc.to_parquet(Path(params["ml_data_outdir"]) / md_fname)
-        rsp_sub.to_parquet(Path(params["ml_data_outdir"]) / rsp_fname)
+        merged_df.to_parquet(Path(params["ml_data_outdir"])/data_fname)
         # [Req] Save y dataframe for the current stage
-        # Note that this requires the rsp df to have the same order after merging to be comparable
-        ydf = rsp_sub[['improve_sample_id', 'improve_chem_id', params["y_col_name"]]]
         frm.save_stage_ydf(ydf, params, stage)
         temp_end_time = time.time()
         print_duration(f"Saving {stage.capitalize()} Dataframes", temp_start_time, temp_end_time)

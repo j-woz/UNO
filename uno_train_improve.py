@@ -19,12 +19,12 @@ from params import app_preproc_params, model_preproc_params, app_train_params, m
 
 # Import custom made functions
 from uno_utils_improve import (
-    data_generator, 
+    data_merge_generator, 
     batch_predict, 
     print_duration, 
     get_optimizer,
     subset_data,
-    calculate_sstot,
+    calculate_sstot, 
     R2Callback_efficient, 
     R2Callback_accurate, 
     warmup_scheduler,
@@ -59,8 +59,11 @@ filepath = Path(__file__).resolve().parent  # [Req]
   - power_yj scaler that is made from a different cross-study dataset can cause NaNs from exploding
     or vanishing gradients. This is because the power_yj scaler is not robust to extreme values and
     requires cleaning of the array before storing test scores.
-  - Incorporate R2 calculation into the normal loss calculation? How it's done right now requires
-    loading and predicting the entire dataset again, which is not efficient.
+  - When merging data where the index is that is merged on can be the same, there can be some shuffling
+    of the rows. This is why care needs to be taken when generating the stored predictions.
+  - The R2 callback currently either: (1) Is very inefficient and requires an entire loop through the
+    dataset each calculation or (2) Is off by a substantial amount because of the batch calculation/
+    averaging logic going on in tensorflow models. Specifically with the calculation of y_mean.
 """
 
 # ---------------------
@@ -148,7 +151,7 @@ def run(params: Dict):
     min_lr = raw_min_lr * batch_size
     warmup_epochs = params["warmup_epochs"]
     warmup_type = params["warmup_type"]
-    initial_lr = raw_max_lr / 100
+    initial_lr = max_lr / 100
     reduce_lr_factor = params["reduce_lr_factor"]
     reduce_lr_patience = params["reduce_lr_patience"]
     early_stopping_patience = params["early_stopping_patience"]
@@ -188,16 +191,24 @@ def run(params: Dict):
 
 
     # ------------------------------------------------------
-    # [Req] Create data names for train and val sets
+    # [Req] Create file names and load data
     # ------------------------------------------------------
     train_data_fname = frm.build_ml_data_name(params, stage="train")
+    train_ge_fname = f"ge_{train_data_fname}"
+    train_md_fname = f"md_{train_data_fname}"
+    train_rsp_fname = f"rsp_{train_data_fname}"
+    tr_ge = pd.read_parquet(Path(params["train_ml_data_dir"])/train_ge_fname)
+    tr_md = pd.read_parquet(Path(params["train_ml_data_dir"])/train_md_fname)
+    tr_rsp = pd.read_parquet(Path(params["train_ml_data_dir"])/train_rsp_fname)
+    # ------------------------------------------------------
     val_data_fname = frm.build_ml_data_name(params, stage="val")
+    val_ge_fname = f"ge_{val_data_fname}"
+    val_md_fname = f"md_{val_data_fname}"
+    val_rsp_fname = f"rsp_{val_data_fname}"
+    vl_ge = pd.read_parquet(Path(params["val_ml_data_dir"])/val_ge_fname)
+    vl_md = pd.read_parquet(Path(params["val_ml_data_dir"])/val_md_fname)
+    vl_rsp = pd.read_parquet(Path(params["val_ml_data_dir"])/val_rsp_fname)
 
-    # ------------------------------------------------------
-    # Load model input data (ML data)
-    # ------------------------------------------------------
-    tr_data = pd.read_parquet(Path(params["train_ml_data_dir"])/train_data_fname)
-    vl_data = pd.read_parquet(Path(params["val_ml_data_dir"])/val_data_fname)
 
     # Subset if setting true (for testing)
     if train_subset_data:
@@ -211,24 +222,25 @@ def run(params: Dict):
     # Show data in debug mode
     if train_debug:
         print("TRAIN DATA:")
-        print(tr_data.head())
-        print(tr_data.shape)
+        print(tr_rsp.head())
+        print(tr_rsp.shape)
         print("")
         print("VAL DATA:")
-        print(vl_data.head())
-        print(vl_data.shape)
+        print(vl_rsp.head())
+        print(vl_rsp.shape)
 
+
+    # Merge one row to get feature sets
+    row = tr_rsp.iloc[0:1]
+    merged_row = pd.merge(row, tr_ge, on=params["canc_col_name"], how="inner")
+    merged_row = pd.merge(merged_row, tr_md, on=params["drug_col_name"], how="inner")
+    if train_debug:
+        print(merged_row.head())
+        print(merged_row.shape)
 
     # Identify the Feature Sets from DataFrame
-    num_ge_columns = len([col for col in tr_data.columns if col.startswith('ge')])
-    num_md_columns = len([col for col in tr_data.columns if col.startswith('mordred')])
-
-    # Separate input (features) and target and convert to numpy arrays
-    # (better for tensorflow)
-    x_train = tr_data.iloc[:, 1:].to_numpy()
-    y_train = tr_data.iloc[:, 0].to_numpy()
-    x_val = vl_data.iloc[:, 1:].to_numpy()
-    y_val = vl_data.iloc[:, 0].to_numpy()
+    num_ge_columns = len([col for col in merged_row.columns if col.startswith('ge')])
+    num_md_columns = len([col for col in merged_row.columns if col.startswith('mordred')])
 
     # Slice the input tensor
     all_input = Input(shape=(num_ge_columns + num_md_columns,), name="all_input")
@@ -259,7 +271,7 @@ def run(params: Dict):
         )
 
     # Final output layer
-    output = Dense(1, activation=regression_activation)(interaction_encoded)
+    output = Dense(1, activation=regression_activation)(interaction_encoded)  # A single continuous value such as AUC
 
     # Compile Model
     model = Model(inputs=all_input, outputs=output)
@@ -274,9 +286,8 @@ def run(params: Dict):
 
 
     # Number of batches for data loading and callbacks
-    # steps_per_epoch is for grad descent batches while train_steps is for r2_train
-    steps_per_epoch = int(np.ceil(len(x_train) / batch_size))
-    validation_steps = int(np.ceil(len(x_val) / generator_batch_size))
+    steps_per_epoch = int(np.ceil(len(tr_rsp) / batch_size))
+    validation_steps = int(np.ceil(len(vl_rsp) / generator_batch_size))
 
 
     # Instantiate callbacks
@@ -305,12 +316,11 @@ def run(params: Dict):
         restore_best_weights=True,
     )
 
-
     # R2 (efficient or accurate)
 
     # Calculate ss_tot for r2
-    train_ss_tot = calculate_sstot(y_train)
-    val_ss_tot = calculate_sstot(y_val)
+    train_ss_tot = calculate_sstot(tr_rsp[params["y_col_name"]])
+    val_ss_tot = calculate_sstot(vl_rsp[params["y_col_name"]])
 
     # Efficient (calculated through epoch) (averaging errors with smaller last batch)
     r2_callback= R2Callback_efficient(
@@ -321,10 +331,9 @@ def run(params: Dict):
 
     epoch_start_time = time.time()
 
-
-    # Make separate generators for training (fixing index issue)
-    train_gen = data_generator(x_train, y_train, batch_size, shuffle=True, peek=True, verbose=False)
-    val_gen = data_generator(x_val, y_val, generator_batch_size, shuffle=False, verbose=False)
+    # Make separate generators for training and val (fixing peeking index issue)
+    train_gen = data_merge_generator(tr_rsp, tr_ge, tr_md, batch_size, params, shuffle=True, peek=True)
+    val_gen = data_merge_generator(vl_rsp, vl_ge, vl_md, generator_batch_size, params, shuffle=False, peek=True)
 
     # Fit model
     history = model.fit(
@@ -349,10 +358,13 @@ def run(params: Dict):
 
     # Batch prediction (and flatten inside function)
     # Make sure to make new generator state so no index problem
-    val_pred, val_true = batch_predict(model, data_generator(x_val, y_val, generator_batch_size), validation_steps)
 
-    check_array(val_pred)
-    check_array(val_true)
+    val_pred, val_true = batch_predict(
+        model, 
+        data_merge_generator(vl_rsp, vl_ge, vl_md, generator_batch_size, params, merge_preserve_order=True, verbose=False), 
+        validation_steps
+    )
+    
 
     # ------------------------------------------------------
     # [Req] Save raw predictions in dataframe

@@ -5,7 +5,7 @@ import sys
 import os
 from pathlib import Path
 from typing import Dict, List, Union
-from uno_utils_improve import print_duration
+from uno_utils_improve import print_duration, get_common_samples, get_column_ranges, subset_data
 
 # Script Dependencies: pandas, numpy, joblib, scikit-learn
 
@@ -45,82 +45,6 @@ preprocess_params = app_preproc_params + model_preproc_params
 train_params = app_train_params + model_train_params
 
 # ------------------------------------------------------------
-
-
-# TO-DO related to lincs
-def gene_selection(df: pd.DataFrame, genes_fpath: Union[Path, str], canc_col_name: str):
-    """Takes a dataframe omics data (e.g., gene expression) and retains only
-    the genes specified in genes_fpath.
-    """
-    with open(genes_fpath) as f:
-        genes = [str(line.rstrip()) for line in f]
-    # genes = ["ge_" + str(g) for g in genes]  # This is for our legacy data
-    # print("Genes count: {}".format(len(set(genes).intersection(set(df.columns[1:])))))
-    genes = list(set(genes).intersection(set(df.columns[1:])))
-    # genes = drp.common_elements(genes, df.columns[1:])
-    cols = [canc_col_name] + genes
-    return df[cols]
-
-
-def subset_data(rsp: pd.DataFrame, stage: str, total_num_samples: int, stage_proportions: Dict):
-    # Check for valid stage
-    if stage not in stage_proportions:
-        raise ValueError(f"Unrecognized stage when subsetting data: {stage}")
-    # Check for small datasets
-    naive_num_samples = int(total_num_samples * stage_proportions[stage])
-    stage_num_samples = min(naive_num_samples, rsp.shape[0])
-    # Print info
-    if naive_num_samples >= rsp.shape[0]:
-        print(f"Small {stage.capitalize()} Dataset of Size {stage_num_samples}. "
-        f"Subsetting to {naive_num_samples} Is Skipped")
-    else:
-        print(f"Subsetting {stage} Data To: {stage_num_samples}")
-    # Subset data
-    rsp = rsp.sample(n=stage_num_samples).reset_index(drop=True)
-
-    return rsp
-
-
-def get_common_samples(
-    canc_df: pd.DataFrame,
-    drug_df: pd.DataFrame,
-    rsp_df: pd.DataFrame,
-    canc_col_name: str,
-    drug_col_name: str,
-):
-    """
-    Args:
-        canc_df (pd.Dataframe): cell features df.
-        drug_df (pd.Dataframe): drug features df.
-        rsp_df (pd.Dataframe): drug response df.
-        canc_col_name (str): Column name that contains the cancer sample ids.
-        drug_col_name (str): Column name that contains the drug ids.
-
-    Returns:
-        Cancer, drug, and response dataframes with only the common samples 
-        between them all.
-
-    Justification:
-        When creating scalers, it's important to create on only the drugs/cell
-        lines present in that dataset. Also, filtering unnecessary data before
-        merging saves memory and computation time when later merging
-    """
-    # Filter response according to all
-    rsp_df = rsp_df.merge(
-       canc_df[canc_col_name], on=canc_col_name, how="inner"
-    )
-    rsp_df = rsp_df.merge(
-       drug_df[drug_col_name], on=drug_col_name, how="inner"
-    )
-    # Filter all according to response
-    canc_df = canc_df[
-        canc_df[canc_col_name].isin(rsp_df[canc_col_name])
-    ].reset_index(drop=True)
-    drug_df = drug_df[
-        drug_df[drug_col_name].isin(rsp_df[drug_col_name])
-    ].reset_index(drop=True)
-
-    return canc_df, drug_df, rsp_df
 
 
 def scale_df(
@@ -301,7 +225,7 @@ def run(params: Dict):
         print(textwrap.dedent(f"""
             Gene Expression Shape Before Subsetting With Response: {ge.shape}
             Gene Expression Shape After Subsetting With Response: {ge_sub.shape}
-            Mordred Shape Before MSubsetting With Response: {md.shape}
+            Mordred Shape Before Subsetting With Response: {md.shape}
             Mordred Shape After Subsetting With Response: {md_sub.shape}
             Response Shape Before Merging With Data: {rsp.shape}
             Response Shape After Merging With Data: {rsp_sub.shape}
@@ -396,45 +320,30 @@ def run(params: Dict):
         # The implementation of this step depends on the model.
         # --------------------------------
             
-        # Shuffle data / subset if setting true (for testing)
+        # Subset if setting true (for testing)
         if preprocess_subset_data:
             # Define the total number of samples and the proportions for each stage
             total_num_samples = 5000
             stage_proportions = {"train": 0.8, "val": 0.1, "test": 0.1}   # should represent proportions given
             # Shuffle with num_samples set by total and stage
-            rsp = subset_data(rsp, stage, total_num_samples, stage_proportions)
-        else:
-            # No subsetting, shuffle the whole dataset
-            rsp = rsp.sample(frac=1).reset_index(drop=True)
-
-        # Merging data
-        temp_start_time = time.time()
-        print("Merging Data")
-        merged_df = rsp.merge(ge_sc, on=params["canc_col_name"], how="inner")
-        merged_df = merged_df.merge(md_sc, on=params["drug_col_name"], how="inner")
-        merged_df = merged_df.sample(frac=1.0).reset_index(drop=True)
-
-        ydf = merged_df[['improve_sample_id', 'improve_chem_id', params["y_col_name"]]]
-        merged_df.drop(['improve_sample_id', 'improve_chem_id'], axis=1, inplace=True)
-
-        temp_end_time = time.time()
-        print_duration(f"Merging {stage.capitalize()} Dataframes", temp_start_time, temp_end_time)
-        print(stage.capitalize(), "merged data -->", merged_df.shape, "\n")
-
-
-        # Show dataframes if on debug mode
-        if preprocess_debug:
-            print("Final merged Data:")
-            print(merged_df.head())
-            print("")
+            rsp_sub = subset_data(rsp_sub, stage, total_num_samples, stage_proportions)
+            
 
         # Save final dataframe to the constructed file paths
         temp_start_time = time.time()
-        print(f"Saving {stage.capitalize()} Data to Parquet")
+        print(f"Saving {stage.capitalize()} Data (unmerged) to Parquet")
         # [Req] Build data name
         data_fname = frm.build_ml_data_name(params, stage)
-        merged_df.to_parquet(Path(params["ml_data_outdir"])/data_fname)
+        ge_fname = f"ge_{data_fname}"
+        md_fname = f"md_{data_fname}"
+        rsp_fname = f"rsp_{data_fname}"
+        # [Req] Save dataframes
+        ge_sc.to_parquet(Path(params["ml_data_outdir"]) / ge_fname)
+        md_sc.to_parquet(Path(params["ml_data_outdir"]) / md_fname)
+        rsp_sub.to_parquet(Path(params["ml_data_outdir"]) / rsp_fname)
         # [Req] Save y dataframe for the current stage
+        # Note that this requires the rsp df to have the same order after merging to be comparable
+        ydf = rsp_sub[['improve_sample_id', 'improve_chem_id', params["y_col_name"]]]
         frm.save_stage_ydf(ydf, params, stage)
         temp_end_time = time.time()
         print_duration(f"Saving {stage.capitalize()} Dataframes", temp_start_time, temp_end_time)

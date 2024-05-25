@@ -16,8 +16,8 @@ from tensorflow.keras.models import load_model
 
 # [Req] Imports from other scripts
 from uno_preprocess_improve import preprocess_params
-from uno_train_improve import metrics_list, train_params, ss_res, ss_tot
-from uno_utils_improve import data_generator, batch_predict, print_duration, clean_arrays, check_array
+from uno_train_improve import metrics_list, train_params
+from uno_utils_improve import data_merge_generator, batch_predict, print_duration, clean_arrays, check_array, calculate_sstot
 
 filepath = Path(__file__).resolve().parent  # [Req]
 
@@ -45,17 +45,6 @@ model_infer_params = []
 # frm.initialize_parameters() in the main().
 infer_params = app_infer_params + model_infer_params
 # ---------------------
-
-# Custom objects for loading UNO model
-def r2(y_true, y_pred):
-    ss_res = np.sum(np.square(y_true - y_pred))
-    ss_tot = np.sum(np.square(y_true - np.mean(y_true)))
-    return 1 - ss_res / ss_tot
-custom_objects = {
-    "ss_res": ss_res,
-    "ss_tot": ss_tot,
-    "r2": r2
-}
 
 
 # [Req]
@@ -90,11 +79,6 @@ def run(params: Dict):
     # Get real and predicted y_test and convert to numpy for compatibility
     # y_ts = ts_data[params["y_col_name"]].to_numpy()
     # x_ts = ts_data.drop([params["y_col_name"]], axis=1).to_numpy()
-
-    # Test data generator
-    generator_batch_size = params["generator_batch_size"]
-    test_steps = int(np.ceil(len(ts_rsp) / generator_batch_size))
-    test_gen = data_generator(ts_ge, ts_md, ts_rsp, generator_batch_size, params)
     
 
     # ------------------------------------------------------
@@ -104,12 +88,17 @@ def run(params: Dict):
     modelpath = frm.build_model_path(params, model_dir=params["model_dir"])  # [Req]
 
     # Load UNO
-    model = load_model(modelpath, custom_objects=custom_objects)
+    model = load_model(modelpath)
+
+    # Create test data generator
+    generator_batch_size = params["generator_batch_size"]
+    test_steps = int(np.ceil(len(ts_rsp) / generator_batch_size))
+    test_gen = data_merge_generator(ts_rsp, ts_ge, ts_md, generator_batch_size, params, merge_preserve_order=True, verbose=False)
 
     # Use batch_predict for predictions
     test_pred, test_true = batch_predict(
         model,
-        data_generator(ts_ge, ts_md, ts_rsp, generator_batch_size, params, merge_preserve_order=True, verbose=False),
+        test_gen,
         test_steps
     )
 

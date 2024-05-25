@@ -37,37 +37,22 @@ def get_common_samples(
         lines present in that dataset. Also, filtering unnecessary data before
         merging saves memory and computation time when later merging
     """
-    # # Filter response according to all
-    # rsp_df = rsp_df.merge(
-    #    canc_df[canc_col_name], on=canc_col_name, how="inner"
-    # )
-    # rsp_df = rsp_df.merge(
-    #    drug_df[drug_col_name], on=drug_col_name, how="inner"
-    # )
-    # # Filter all according to response
-    # canc_df = canc_df[
-    #     canc_df[canc_col_name].isin(rsp_df[canc_col_name])
-    # ].reset_index(drop=True)
-    # drug_df = drug_df[
-    #     drug_df[drug_col_name].isin(rsp_df[drug_col_name])
-    # ].reset_index(drop=True)
+    # Filter response according to all
+    rsp_df = rsp_df.merge(
+       canc_df[canc_col_name], on=canc_col_name, how="inner"
+    )
+    rsp_df = rsp_df.merge(
+       drug_df[drug_col_name], on=drug_col_name, how="inner"
+    )
+    # Filter all according to response
+    canc_df = canc_df[
+        canc_df[canc_col_name].isin(rsp_df[canc_col_name])
+    ].reset_index(drop=True)
+    drug_df = drug_df[
+        drug_df[drug_col_name].isin(rsp_df[drug_col_name])
+    ].reset_index(drop=True)
 
     return canc_df, drug_df, rsp_df
-
-
-# TO-DO related to lincs
-def gene_selection(df: pd.DataFrame, genes_fpath: Union[Path, str], canc_col_name: str):
-    """Takes a dataframe omics data (e.g., gene expression) and retains only
-    the genes specified in genes_fpath.
-    """
-    with open(genes_fpath) as f:
-        genes = [str(line.rstrip()) for line in f]
-    # genes = ["ge_" + str(g) for g in genes]  # This is for our legacy data
-    # print("Genes count: {}".format(len(set(genes).intersection(set(df.columns[1:])))))
-    genes = list(set(genes).intersection(set(df.columns[1:])))
-    # genes = drp.common_elements(genes, df.columns[1:])
-    cols = [canc_col_name] + genes
-    return df[cols]
 
 
 
@@ -155,7 +140,7 @@ class R2Callback_efficient(Callback):
         logs["r2_train"] = train_r2
         logs["r2_val"] = val_r2
         # Print
-        print(f'\nEpoch: {epoch + 1}, Train R2: {train_r2}, Val R2: {val_r2} \n')
+        # print(f'\nEpoch: {epoch + 1}, Train R2: {train_r2}, Val R2: {val_r2} \n')
 
 
 class R2Callback_accurate(Callback):
@@ -231,7 +216,7 @@ def subset_data(rsp: pd.DataFrame, stage: str, total_num_samples: int, stage_pro
     return rsp
     
 
-def merge(rsp, ge, md, indices, params, preserve_order=False, preprocess_debug=False):
+def merge(rsp, ge, md, indices, params, preserve_order=False, debug=False):
     if preserve_order:
         # Add an 'order' column to 'rsp' to keep track of the original order... 
         # sometimes merging messes up the order when the 'on' column is not unique, which matters for comparing to the original rsp
@@ -255,7 +240,7 @@ def merge(rsp, ge, md, indices, params, preserve_order=False, preprocess_debug=F
         merged_df.drop(['order'], axis=1, inplace=True)
 
     # Show dataframes if on debug mode
-    if preprocess_debug:
+    if debug:
         print("Merged Data:")
         print(merged_df.head())
         print("")
@@ -280,7 +265,8 @@ def data_merge_generator(rsp, ge, md, batch_size, params, shuffle=False, peek=Fa
             if verbose:
                 print(f"Generating peeking batch up to index {end}")
             batch_indices = indices[:end]
-            batch_x, batch_y = merge(rsp, ge, md, batch_indices, params, preserve_order=merge_preserve_order, preprocess_debug=params['preprocess_debug'])
+            batch_x, batch_y = merge(rsp, ge, md, batch_indices, params, preserve_order=merge_preserve_order, debug=params['train_debug'])
+            peek = False
             yield (batch_x, batch_y)
 
         # Shuffle indices at the start of each epoch after the peek, if shuffle is enabled
@@ -337,7 +323,7 @@ def data_generator(x_data, y_data, batch_size, shuffle=False, peek=False, verbos
             if verbose:
                 # Warning: calling verbose when shuffling will usually clutter output
                 if shuffle:
-                    if len(batch_indices) < 64:
+                    if len(batch_indices) < 16:
                         print(f"Batch indices: {np.sort(batch_indices)}")
                     else:
                         print(f"Printing batch indices would clutter output. Skipped.")
@@ -387,28 +373,28 @@ def print_duration(activity: str, start_time: float, end_time: float):
     print(f"Time for {activity}: {hours} hours, {minutes} minutes, and {seconds} seconds\n")
 
 
-def clean_arrays(test_pred, test_true):
+def clean_arrays(pred, true):
     # Initialize clean arrays
-    test_pred_clean = test_pred
-    test_true_clean = test_true
+    pred_clean = pred
+    true_clean = true
 
     # Find NaN indices and remove
-    nan_indices = np.where(np.isnan(test_pred))[0]
-    test_pred_clean = np.delete(test_pred_clean, nan_indices)
-    test_true_clean = np.delete(test_true_clean, nan_indices)
+    nan_indices = np.where(np.isnan(pred))[0]
+    pred_clean = np.delete(pred_clean, nan_indices)
+    true_clean = np.delete(true_clean, nan_indices)
 
     # Find infinity indices and remove
-    inf_indices = np.where(np.isinf(test_pred))[0]
-    test_pred_clean = np.delete(test_pred_clean, inf_indices)
-    test_true_clean = np.delete(test_true_clean, inf_indices)
+    inf_indices = np.where(np.isinf(pred))[0]
+    pred_clean = np.delete(pred_clean, inf_indices)
+    true_clean = np.delete(true_clean, inf_indices)
 
     # Print the number and percent of removed indices
-    start_len = len(test_pred)
-    end_len = len(test_pred_clean)
+    start_len = len(pred)
+    end_len = len(pred_clean)
     print(f"Removed {start_len - end_len} values due to NaN or infinity values.")
     print(f"Removed {100 * (start_len - end_len) / start_len:.3f}% of data due to NaN or infinity values.")
 
-    return test_pred_clean, test_true_clean
+    return pred_clean, true_clean
 
 
 def check_array(array):
@@ -425,3 +411,23 @@ def check_array(array):
     # Check and print indices/values for infinity values
     inf_indices = np.where(np.isinf(array))[0]
     print("Indices of infinity:", inf_indices[:5])
+
+
+
+# ------------------------------------------------------
+# Not Yet Used Utils
+# ------------------------------------------------------
+
+# TO-DO related to lincs
+def gene_selection(df: pd.DataFrame, genes_fpath: Union[Path, str], canc_col_name: str):
+    """Takes a dataframe omics data (e.g., gene expression) and retains only
+    the genes specified in genes_fpath.
+    """
+    with open(genes_fpath) as f:
+        genes = [str(line.rstrip()) for line in f]
+    # genes = ["ge_" + str(g) for g in genes]  # This is for our legacy data
+    # print("Genes count: {}".format(len(set(genes).intersection(set(df.columns[1:])))))
+    genes = list(set(genes).intersection(set(df.columns[1:])))
+    # genes = drp.common_elements(genes, df.columns[1:])
+    cols = [canc_col_name] + genes
+    return df[cols]
