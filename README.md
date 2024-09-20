@@ -94,7 +94,6 @@ This will:
 1. Download cross-study analysis (CSA) benchmark data into `./csa_data/`.
 2. Clone IMPROVE repo (checkout tag `v0.0.3-beta`) outside the UNO model repo
 3. Set up env variables: `IMPROVE_DATA_DIR` (to `./csa_data/`) and `PYTHONPATH` (adds IMPROVE repo).
-4. Download the model-specific supplemental data (aka author data) and set up the env variable `AUTHOR_DATA_DIR`.
 
 
 ### 4. Preprocess CSA benchmark data (_raw data_) to construct model input data (_ML data_)
