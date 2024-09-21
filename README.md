@@ -86,7 +86,7 @@ source setup_improve.sh
 
 This will:
 1. Download cross-study analysis (CSA) benchmark data into `./csa_data/`.
-2. Clone IMPROVE repo (checkout tag `develop`) outside the UNO model repo.
+2. Clone IMPROVE repo (checkout `develop`) outside the UNO model repo.
 3. Set up `PYTHONPATH` (adds IMPROVE repo).
 
 
