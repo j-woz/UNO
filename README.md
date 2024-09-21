@@ -53,14 +53,12 @@ csa_data/raw_data/
     └── response.tsv
 ```
 
-
 ## Model scripts and parameter file
 + `uno_preprocess_improve.py` - takes benchmark data files and transforms them into files for training and inference
 + `uno_train_improve.py` - trains the UNO model
 + `uno_infer_improve.py` - runs inference with the trained UNO model
-+ `uno_default_model.txt` - default parameter file
-
-
++ `uno_default_model.txt` - default parameter file (parameter values specified in this file override the defaults)
++ `model_params_def.py` - definitions of parameters that are specific to the model
 
 # Step-by-step instructions
 
@@ -88,8 +86,8 @@ source setup_improve.sh
 
 This will:
 1. Download cross-study analysis (CSA) benchmark data into `./csa_data/`.
-2. Clone IMPROVE repo (checkout tag `develop`) outside the UNO model repo
-3. Set up env variables: `IMPROVE_DATA_DIR` (to `./csa_data/`) and `PYTHONPATH` (adds IMPROVE repo).
+2. Clone IMPROVE repo (checkout tag `develop`) outside the UNO model repo.
+3. Set up `PYTHONPATH` (adds IMPROVE repo).
 
 
 ### 4. Preprocess CSA benchmark data (_raw data_) to construct model input data (_ML data_)
