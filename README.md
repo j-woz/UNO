@@ -102,23 +102,22 @@ Generates:
 * three tabular data files, each containing the drug response values (i.e. AUC) and corresponding metadata: `train_y_data.csv`, `val_y_data.csv`, `test_y_data.csv`
 
 ```
-ml_data
-└── gCSI
-    └── split_0
-        ├── ge_test_data.parquet
-        ├── ge_train_data.parquet
-        ├── ge_val_data.parquet
-        ├── md_test_data.parquet
-        ├── md_train_data.parquet
-        ├── md_val_data.parquet
-        ├── rsp_test_data.parquet
-        ├── rsp_train_data.parquet
-        ├── rsp_val_data.parquet
-        ├── test_y_data.csv
-        ├── train_y_data.csv
-        ├── val_y_data.csv
-        ├── x_data_gene_expression_scaler.gz
-        └── x_data_mordred_scaler.gz
+exp_result
+├── ge_test_data.parquet
+├── ge_train_data.parquet
+├── ge_val_data.parquet
+├── md_test_data.parquet
+├── md_train_data.parquet
+├── md_val_data.parquet
+├── param_log_file.txt
+├── rsp_test_data.parquet
+├── rsp_train_data.parquet
+├── rsp_val_data.parquet
+├── test_y_data.csv
+├── train_y_data.csv
+├── val_y_data.csv
+├── x_data_gene_expression_scaler.gz
+└── x_data_mordred_scaler.gz
 ```
 
 ### 5. Train UNO model
@@ -132,19 +131,33 @@ Generates:
 * trained model: `saved_model.pb`
 * predictions on val data (tabular data): `val_y_data_predicted.csv`
 * prediction performance scores on val data: `val_scores.json`
+
 ```
-out_models
-└── gCSI
-    └── split_0
-        ├── model
-            ├── assets/
-            ├── keras_metadata.pb
-            ├── saved_model.pb
-            └── variables
-                ├── variables.data-00000-of-00001
-                └── variables.index
-        ├── val_scores.json
-        └── val_y_data_predicted.csv
+exp_result
+├── ge_test_data.parquet
+├── ge_train_data.parquet
+├── ge_val_data.parquet
+├── md_test_data.parquet
+├── md_train_data.parquet
+├── md_val_data.parquet
+├── model
+    ├── assets/
+    ├── keras_metadata.pb
+    ├── saved_model.pb
+    └── variables
+        ├── variables.data-00000-of-00001
+        └── variables.index
+├── param_log_file.txt
+├── rsp_test_data.parquet
+├── rsp_train_data.parquet
+├── rsp_val_data.parquet
+├── test_y_data.csv
+├── train_y_data.csv
+├── val_scores.json
+├── val_y_data.csv
+├── val_y_data_predicted.csv
+├── x_data_gene_expression_scaler.gz
+└── x_data_mordred_scaler.gz
 ```
 
 ### 6. Run inference on test data with the trained model
@@ -158,9 +171,31 @@ Generates:
 * predictions on test data (tabular data): `test_y_data_predicted.csv`
 * prediction performance scores on test data: `test_scores.json`
 ```
-out_infer
-└── gCSI-gCSI
-    └── split_0
-        ├── test_scores.json
-        └── test_y_data_predicted.csv
+exp_result
+├── ge_test_data.parquet
+├── ge_train_data.parquet
+├── ge_val_data.parquet
+├── md_test_data.parquet
+├── md_train_data.parquet
+├── md_val_data.parquet
+├── model
+    ├── assets/
+    ├── keras_metadata.pb
+    ├── saved_model.pb
+    └── variables
+        ├── variables.data-00000-of-00001
+        └── variables.index
+├── param_log_file.txt
+├── rsp_test_data.parquet
+├── rsp_train_data.parquet
+├── rsp_val_data.parquet
+├── test_scores.json
+├── test_y_data.csv
+├── test_y_data_predicted.csv
+├── train_y_data.csv
+├── val_scores.json
+├── val_y_data.csv
+├── val_y_data_predicted.csv
+├── x_data_gene_expression_scaler.gz
+└── x_data_mordred_scaler.gz
 ```
