@@ -1,23 +1,20 @@
 # UNO
 
-This repository demonstrates how to use the [IMPROVE library v0.0.3-beta](https://github.com/JDACS4C-IMPROVE/IMPROVE/tree/v0.0.3-beta) for building a drug response prediction (DRP) model using UNO, and provides examples with the benchmark [cross-study analysis (CSA) dataset](https://web.cels.anl.gov/projects/IMPROVE_FTP/candle/public/improve/benchmarks/single_drug_drp/benchmark-data-pilot1/csa_data/).
+This repository demonstrates how to use the [IMPROVE library v0.1.0-alpha](https://jdacs4c-improve.github.io/docs/v0.1.0-alpha/) for building a drug response prediction (DRP) model using UNO, and provides examples with the benchmark [cross-study analysis (CSA) dataset](https://web.cels.anl.gov/projects/IMPROVE_FTP/candle/public/improve/benchmarks/single_drug_drp/benchmark-data-pilot1/csa_data/).
 
-This version, tagged as `v0.0.3-beta`, is the final release before transitioning to `v0.1.0-alpha`, which introduces a new API. Version `v0.0.3-beta` and all previous releases have served as the foundation for developing essential components of the IMPROVE software stack. Subsequent releases build on this legacy with an updated API, designed to encourage broader adoption of IMPROVE and its curated models by the research community.
+This version, tagged as `v0.1.0-alpha`, introduces a new API which is designed to encourage broader adoption of IMPROVE and its curated models by the research community.
 
-A more detailed tutorial can be found [here](https://jdacs4c-improve.github.io/docs/v0.0.3-beta/content/ModelContributorGuide.html).
+A more detailed tutorial can be found HERE (`TODO!`).
 
 
 ## Dependencies
 Installation instuctions are detailed below in [Step-by-step instructions](#step-by-step-instructions).
 
-Conda `yml` file [environment_082223.yml](./environment_082223.yml)
-
 ML framework:
 + [TensorFlow](https://www.tensorflow.org/) -- deep learning framework for building the prediction model
 
 IMPROVE dependencies:
-+ [IMPROVE v0.0.3-beta](https://github.com/JDACS4C-IMPROVE/IMPROVE/tree/v0.0.3-beta)
-+ [candle_lib](https://github.com/ECP-CANDLE/candle_lib) - IMPROVE dependency (enables various hyperparameter optimization on HPC machines) 
++ [IMPROVE v0.1.0-alpha](https://jdacs4c-improve.github.io/docs/v0.1.0-alpha/)
 
 
 ## Dataset
@@ -71,7 +68,7 @@ csa_data/raw_data/
 ```
 git clone https://github.com/JDACS4C-IMPROVE/UNO
 cd UNO
-git checkout v0.0.3-beta
+git checkout develop
 ```
 
 
@@ -80,7 +77,6 @@ Create conda environment
 ```bash
 conda create --name Uno_IMPROVE python=3.7.16 tensorflow-gpu=2.10.0 -y
 conda activate Uno_IMPROVE
-pip install git+https://github.com/ECP-CANDLE/candle_lib@develop
 pip install protobuf==3.20.0
 pip install pyarrow==12.0.1
 ```
@@ -92,13 +88,13 @@ source setup_improve.sh
 
 This will:
 1. Download cross-study analysis (CSA) benchmark data into `./csa_data/`.
-2. Clone IMPROVE repo (checkout tag `v0.0.3-beta`) outside the UNO model repo
+2. Clone IMPROVE repo (checkout tag `develop`) outside the UNO model repo
 3. Set up env variables: `IMPROVE_DATA_DIR` (to `./csa_data/`) and `PYTHONPATH` (adds IMPROVE repo).
 
 
 ### 4. Preprocess CSA benchmark data (_raw data_) to construct model input data (_ML data_)
 ```bash
-python uno_preprocess_improve.py
+python uno_preprocess_improve.py --input_dir ./csa_data/raw_data --output_dir exp_result
 ```
 
 Preprocesses the CSA data and creates train, validation (val), and test datasets.
@@ -129,7 +125,7 @@ ml_data
 
 ### 5. Train UNO model
 ```bash
-python uno_train_improve.py
+python uno_train_improve.py --input_dir exp_result --output_dir exp_result
 ```
 
 Trains UNO using the model input data: `ge_train_data.parquet`, `md_train_data.parquet`, `rsp_train_data.parquet` (training) and `ge_val_data.parquet`, `md_val_data.parquet`, `rsp_val_data.parquet` (for early stopping).
@@ -155,7 +151,7 @@ out_models
 
 ### 6. Run inference on test data with the trained model
 ```bash
-python uno_infer_improve.py
+python uno_infer_improve.py --input_data_dir exp_result --input_model_dir exp_result --output_dir exp_result --calc_infer_score true
 ```
 
 Evaluates the performance on a test dataset with the trained model.
