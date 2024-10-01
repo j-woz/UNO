@@ -24,7 +24,7 @@ fi
 
 # Clone IMPROVE lib (if needed)
 cd ../
-improve_lib_path=$PWD/IMPROVE
+improve_lib_path=~/IMPROVE
 # improve_branch="framework-api"
 improve_branch="develop"
 if [ -d $improve_lib_path ]; then

@@ -1,155 +1,149 @@
 import time
-infer_start_time = time.time()
 import os
 import sys
 from pathlib import Path
 from typing import Dict
 
-# [Req] IMPROVE/CANDLE imports
-from improve import framework as frm
+# Import required modules from improvelib
+from improvelib.applications.drug_response_prediction.config import DRPInferConfig
+from improvelib.utils import str2bool
+import improvelib.utils as frm  # Utility functions
 
-# Additional imports
+# Additional third-party library imports
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 from tensorflow.keras.models import load_model
 
-# [Req] Imports from other scripts
+# Import custom modules from local scripts
 from uno_preprocess_improve import preprocess_params
 from uno_train_improve import metrics_list, train_params
-from uno_utils_improve import data_merge_generator, batch_predict, print_duration, clean_arrays, check_array, calculate_sstot
+from uno_utils_improve import (
+    data_merge_generator, batch_predict, print_duration, clean_arrays,
+    check_array, calculate_sstot
+)
 
-filepath = Path(__file__).resolve().parent  # [Req]
+# Set filepath to the directory where the script is located
+filepath = Path(__file__).resolve().parent  
 
 # ---------------------
-# [Req] Parameter lists
+# Parameter Lists
 # ---------------------
-# Two parameter lists are required:
-# 1. app_infer_params
-# 2. model_infer_params
-#
-# The values for the parameters in both lists should be specified in a
-# parameter file that is passed as default_model arg in
-# frm.initialize_parameters().
+# Define two parameter lists required by the inference process:
+# 1. App-specific parameters for monotherapy drug response prediction.
+# 2. Model-specific parameters (optional; LightGBM in this case).
 
-# 1. App-specific params (App: monotherapy drug response prediction)
-# Currently, there are no app-specific params in this script.
+# Currently no app-specific parameters.
 app_infer_params = []
 
-# 2. Model-specific params (Model: LightGBM)
-# All params in model_infer_params are optional.
-# If no params are required by the model, then it should be an empty list.
+# Optional model-specific parameters.
 model_infer_params = []
 
-# [Req] Combine the two lists (the combined parameter list will be passed to
-# frm.initialize_parameters() in the main().
+# Combine both parameter lists to pass to frm.initialize_parameters() in the main().
 infer_params = app_infer_params + model_infer_params
-# ---------------------
 
 
-# [Req]
 def run(params: Dict):
-    """Run model inference.
+    """
+    Run model inference and compute prediction scores.
 
     Args:
-        params (dict): dict of CANDLE/IMPROVE parameters and parsed values.
+        params (dict): Dictionary containing model and application parameters.
 
     Returns:
-        dict: prediction performance scores computed on test data according
-            to the metrics_list.
+        bool: True if inference completes successfully.
     """
-    # import ipdb; ipdb.set_trace()
-
     # ------------------------------------------------------
-    # [Req] Create output dir
+    # Create filenames and load test set data
     # ------------------------------------------------------
-    frm.create_outdir(outdir=params["infer_outdir"])
-
-    # ------------------------------------------------------
-    # [Req] Create file names and load data for test set
-    # ------------------------------------------------------
-    test_data_fname = frm.build_ml_data_name(params, stage="test")
+    test_data_fname = frm.build_ml_data_file_name(data_format=params["data_format"], stage="test")
     test_ge_fname = f"ge_{test_data_fname}"
     test_md_fname = f"md_{test_data_fname}"
     test_rsp_fname = f"rsp_{test_data_fname}"
-    ts_ge = pd.read_parquet(Path(params["test_ml_data_dir"])/test_ge_fname)
-    ts_md = pd.read_parquet(Path(params["test_ml_data_dir"])/test_md_fname)
-    ts_rsp = pd.read_parquet(Path(params["test_ml_data_dir"])/test_rsp_fname)
 
-    # Get real and predicted y_test and convert to numpy for compatibility
-    # y_ts = ts_data[params["y_col_name"]].to_numpy()
-    # x_ts = ts_data.drop([params["y_col_name"]], axis=1).to_numpy()
-    
+    # Load test data from input directory
+    ts_ge = pd.read_parquet(Path(params["input_dir"]) / test_ge_fname)
+    ts_md = pd.read_parquet(Path(params["input_dir"]) / test_md_fname)
+    ts_rsp = pd.read_parquet(Path(params["input_dir"]) / test_rsp_fname)
 
     # ------------------------------------------------------
     # Load best model and compute predictions
     # ------------------------------------------------------
-    # Build model path
-    modelpath = frm.build_model_path(params, model_dir=params["model_dir"])  # [Req]
-
-    # Load UNO
+    # Build the model path
+    modelpath = frm.build_model_path(
+        model_file_name=params["model_file_name"],
+        model_file_format=params["model_file_format"],
+        model_dir=params["output_dir"]
+    )
+    # Load the pre-trained model
     model = load_model(modelpath)
 
-    # Create test data generator
+    # Create data generator for batch predictions
     generator_batch_size = params["generator_batch_size"]
     test_steps = int(np.ceil(len(ts_rsp) / generator_batch_size))
-    test_gen = data_merge_generator(ts_rsp, ts_ge, ts_md, generator_batch_size, params, merge_preserve_order=True, verbose=False)
-
-    # Use batch_predict for predictions
-    test_pred, test_true = batch_predict(
-        model,
-        test_gen,
-        test_steps
+    test_gen = data_merge_generator(
+        ts_rsp, ts_ge, ts_md, generator_batch_size, 
+        params, merge_preserve_order=True, verbose=False
     )
 
+    # Perform batch predictions
+    test_pred, test_true = batch_predict(model, test_gen, test_steps)
+
     # ------------------------------------------------------
-    # [Req] Save raw predictions in dataframe
+    # Save raw predictions to a dataframe
     # ------------------------------------------------------
     frm.store_predictions_df(
-        params,
-        y_true=test_true,
-        y_pred=test_pred,
+        y_true=test_true, 
+        y_pred=test_pred, 
         stage="test",
-        outdir=params["infer_outdir"],
+        y_col_name=params["y_col_name"],
+        output_dir=params["output_dir"]
     )
 
     # ------------------------------------------------------
-    # [Req] Compute performance scores
+    # Compute and save performance scores (optional)
     # ------------------------------------------------------
-    # Make sure test scores don't contain NANs
-    test_pred_clean, test_true_clean = clean_arrays(test_pred, test_true)
-    # Compute scores
-    test_scores = frm.compute_performace_scores(
-        params,
-        y_true=test_true_clean,
-        y_pred=test_pred_clean,
-        stage="test",
-        outdir=params["infer_outdir"],
-        metrics=metrics_list,
-    )
+    if params.get("calc_infer_scores", False):
+        test_scores = frm.compute_performance_scores(
+            y_true=test_true, 
+            y_pred=test_pred, 
+            stage="test",
+            metric_type=params["metric_type"],
+            output_dir=params["output_dir"]
+        )
 
-    return test_scores
+    return True
 
 
-# [Req]
 def main(args):
-    # [Req]
+    """
+    Main function to initialize parameters and run inference.
+
+    Args:
+        args (list): Command-line arguments.
+    """
+    # Combine parameter definitions from preprocessing, training, and inference stages
     additional_definitions = preprocess_params + train_params + infer_params
-    params = frm.initialize_parameters(
-        filepath,
-        default_model="uno_default_model.txt",
-        # default_model="params_ws.txt",
-        # default_model="params_cs.txt",
+
+    # Initialize inference configuration
+    cfg = DRPInferConfig()
+    params = cfg.initialize_parameters(
+        pathToModelDir=filepath,
+        default_config="uno_default_model.txt",
         additional_definitions=additional_definitions,
-        # required=req_infer_params,
-        required=None,
+        required=None
     )
+
+    # Run model inference
     test_scores = run(params)
+
+    # Record inference duration
     infer_end_time = time.time()
     print_duration("Infering", infer_start_time, infer_end_time)
     print("\nFinished model inference.")
 
 
-# [Req]
 if __name__ == "__main__":
+    # Record the start time for inference
+    infer_start_time = time.time()
     main(sys.argv[1:])

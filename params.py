@@ -1,6 +1,7 @@
 # [Req] IMPROVE/CANDLE imports
-from improve import framework as frm
-
+# from improve import framework as frm
+# import improvelib.utils as frm
+from improvelib.utils import str2bool
 
 # --------------------------------
 # [Req] Preprocess Parameter Lists
@@ -53,7 +54,7 @@ app_preproc_params = [
 model_preproc_params = [
     {
         "name": "use_lincs",
-        "type": frm.str2bool,
+        "type": str2bool,
         "default": False,
         "help": "Flag to indicate if using landmark genes.",
     },
