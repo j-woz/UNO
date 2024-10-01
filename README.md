@@ -164,7 +164,7 @@ exp_result
 
 ### 6. Run inference on test data with the trained model
 ```bash
-python uno_infer_improve.py --input_data_dir exp_result --input_model_dir exp_result --output_dir exp_result --calc_infer_score true
+python uno_infer_improve.py --input_dir exp_result --output_dir exp_result --calc_infer_score true
 ```
 
 Evaluates the performance on a test dataset with the trained model.
