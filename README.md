@@ -73,9 +73,10 @@ git checkout develop
 ### 2. Set computational environment
 Create conda environment
 ```bash
-conda create --name Uno_IMPROVE python=3.8 tensorflow-gpu=2.10.0 -y
+conda create --name Uno_IMPROVE python=3.8  -y
 conda activate Uno_IMPROVE
 pip install protobuf==3.19.6
+pip install tensorflow-gpu=2.10.0
 pip install pyarrow==12.0.1
 pip install pyyaml pandas scikit-learn
 ```
@@ -123,7 +124,7 @@ exp_result
 
 ### 5. Train UNO model
 ```bash
-python uno_train_improve.py --input_dir exp_result --output_dir exp_result
+python uno_train_improve.py --input_dir exp_result --output_dir exp_result --epoch 2
 ```
 
 Trains UNO using the model input data: `ge_train_data.parquet`, `md_train_data.parquet`, `rsp_train_data.parquet` (training) and `ge_val_data.parquet`, `md_val_data.parquet`, `rsp_val_data.parquet` (for early stopping).
