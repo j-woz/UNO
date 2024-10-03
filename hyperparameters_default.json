@@ -2,23 +2,23 @@
     "uno": {
         "CCLE": {
             "batch_size": 32,
-            "learning_rate": 1e-5
+            "raw_max_lr": 1e-5
         },
         "CTRPv2": {
             "batch_size": 32,
-            "learning_rate": 1e-5
+            "raw_max_lr": 1e-5
         },
         "GDSCv1": {
             "batch_size": 32,
-            "learning_rate": 1e-5
+            "raw_max_lr": 1e-5
         },
         "GDSCv2": {
             "batch_size": 32,
-            "learning_rate": 1e-5
+            "raw_max_lr": 1e-5
         },
         "gCSI": {
             "batch_size": 32,
-            "learning_rate": 1e-5
+            "raw_max_lr": 1e-5
         }
     }
 }
