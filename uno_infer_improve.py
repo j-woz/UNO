@@ -62,9 +62,9 @@ def run(params: Dict):
     test_rsp_fname = f"rsp_{test_data_fname}"
 
     # Load test data from input directory
-    ts_ge = pd.read_parquet(Path(params["input_dir"]) / test_ge_fname)
-    ts_md = pd.read_parquet(Path(params["input_dir"]) / test_md_fname)
-    ts_rsp = pd.read_parquet(Path(params["input_dir"]) / test_rsp_fname)
+    ts_ge = pd.read_parquet(Path(params["input_data_dir"]) / test_ge_fname)
+    ts_md = pd.read_parquet(Path(params["input_data_dir"]) / test_md_fname)
+    ts_rsp = pd.read_parquet(Path(params["input_data_dir"]) / test_rsp_fname)
 
     # ------------------------------------------------------
     # Load best model and compute predictions
@@ -73,7 +73,7 @@ def run(params: Dict):
     modelpath = frm.build_model_path(
         model_file_name=params["model_file_name"],
         model_file_format=params["model_file_format"],
-        model_dir=params["output_dir"]
+        model_dir=params["input_model_dir"]
     )
     # Load the pre-trained model
     model = load_model(modelpath)
@@ -97,7 +97,8 @@ def run(params: Dict):
         y_pred=test_pred, 
         stage="test",
         y_col_name=params["y_col_name"],
-        output_dir=params["output_dir"]
+        output_dir=params["output_dir"],
+        input_dir=params["input_data_dir"]
     )
 
     # ------------------------------------------------------
