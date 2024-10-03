@@ -4,9 +4,6 @@ This repository demonstrates how to use the [IMPROVE library v0.1.0-alpha](https
 
 This version, tagged as `v0.1.0-alpha`, introduces a new API which is designed to encourage broader adoption of IMPROVE and its curated models by the research community.
 
-A more detailed tutorial can be found HERE (`TODO!`).
-
-
 ## Dependencies
 Installation instuctions are detailed below in [Step-by-step instructions](#step-by-step-instructions).
 
@@ -58,7 +55,7 @@ csa_data/raw_data/
 + `uno_train_improve.py` - trains the UNO model
 + `uno_infer_improve.py` - runs inference with the trained UNO model
 + `uno_default_model.txt` - default parameter file (parameter values specified in this file override the defaults)
-+ `model_params_def.py` - definitions of parameters that are specific to the model
++ `params.py` - definitions of parameters that are specific to the model
 
 # Step-by-step instructions
 
@@ -164,7 +161,7 @@ exp_result
 
 ### 6. Run inference on test data with the trained model
 ```bash
-python uno_infer_improve.py --input_dir exp_result --output_dir exp_result --calc_infer_score true
+python uno_infer_improve.py --input_data_dir exp_result --input_model_dir exp_result --output_dir exp_result --calc_infer_score true
 ```
 
 Evaluates the performance on a test dataset with the trained model.
