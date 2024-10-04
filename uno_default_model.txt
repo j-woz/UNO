@@ -21,7 +21,7 @@ preprocess_subset_data = False
 [Train]
 data_format = .parquet
 model_file_name = model
-model_file_format = pt
+model_file_format = None
 epochs = 200
 batch_size = 32
 generator_batch_size = 1024
