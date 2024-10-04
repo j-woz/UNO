@@ -146,6 +146,6 @@ interaction_layer_9_activation = "relu"
 [Infer]
 data_format = .parquet
 model_file_name = model
-model_file_format = .pt
+model_file_format = None
 infer_batch = 256
 cuda_name = cuda:7
