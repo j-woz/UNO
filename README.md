@@ -73,7 +73,7 @@ Create conda environment
 conda create --name Uno_IMPROVE python=3.8  -y
 conda activate Uno_IMPROVE
 pip install protobuf==3.19.6
-pip install tensorflow-gpu=2.10.0
+pip install tensorflow-gpu==2.10.0
 pip install pyarrow==12.0.1
 pip install pyyaml pandas scikit-learn
 ```
