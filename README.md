@@ -121,7 +121,7 @@ exp_result
 
 ### 5. Train UNO model
 ```bash
-python uno_train_improve.py --input_dir exp_result --output_dir exp_result --epoch 2
+python uno_train_improve.py --input_dir exp_result --output_dir exp_result
 ```
 
 Trains UNO using the model input data: `ge_train_data.parquet`, `md_train_data.parquet`, `rsp_train_data.parquet` (training) and `ge_val_data.parquet`, `md_val_data.parquet`, `rsp_val_data.parquet` (for early stopping).
