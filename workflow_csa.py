@@ -82,7 +82,7 @@ def train(params, hp_model, source_data_name, split):
                 str("--output_dir " + str(model_dir)),
                 str("--epochs " + str(params['epochs'])),
                 str("--y_col_name " + str(params['y_col_name'])),
-                str("--raw_max_lr " + str(hp['raw_max_lr'])),
+                str("--learning_rate " + str(hp['learning_rate'])),
                 str("--batch_size " + str(hp['batch_size']))
             ]
             result = subprocess.run(train_run, capture_output=True,
@@ -94,7 +94,7 @@ def train(params, hp_model, source_data_name, split):
                         "--output_dir", str(model_dir),
                         "--epochs", str(params['epochs']),  # DL-specific
                         "--y_col_name", str(params['y_col_name']),
-                        "--raw_max_lr", str(hp['raw_max_lr']),
+                        "--learning_rate", str(hp['learning_rate']),
                         "--batch_size", str(hp['batch_size'])
             ]
             result = subprocess.run(train_run, capture_output=True,
