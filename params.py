@@ -138,10 +138,10 @@ model_train_params = [
         "help": "Batch size for prediction.",
     },
     {
-        "name": "raw_max_lr",
+        "name": "learning_rate",
         "type": float,
         "default": 1e-5,
-        "help": "Raw maximum learning rate that is later scaled according to batch size.",
+        "help": "learning rate.",
     },
     {
         "name": "warmup_epochs",

@@ -96,10 +96,9 @@ def run(params: Dict):
     epochs = params["epochs"]
     batch_size = params["batch_size"]
     generator_batch_size = params["generator_batch_size"]
-    raw_max_lr = params["raw_max_lr"]
-    raw_min_lr = raw_max_lr / 10000
-    max_lr = raw_max_lr * batch_size
-    min_lr = raw_min_lr * batch_size
+    learning_rate = params["learning_rate"]
+    max_lr = learning_rate * batch_size
+    min_lr = max_lr / 10000
     warmup_epochs = params["warmup_epochs"]
     warmup_type = params["warmup_type"]
     initial_lr = max_lr / 100
