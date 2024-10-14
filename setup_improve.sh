@@ -2,7 +2,7 @@
 # Navigate to the dir with the cloned model repo
 # Run it like this: source ./setup_improve.sh
 
-
+data_dir="csa_data"
 
 # Use subshell to protect user shell from changes:
 (
@@ -14,7 +14,6 @@ model_name=$(echo "$model_path" | awk -F '/' '{print $NF}')
 echo "Model name: $model_name"
 
 # Download data (if needed)
-data_dir="csa_data"
 if [ ! -d $PWD/$data_dir/ ]; then
     echo "Download CSA data"
     source download_csa.sh
