@@ -40,7 +40,7 @@ if [[ "$branch_name" == "$improve_branch" ]]; then
     echo "On the correct branch, ${improve_branch}"
 else
     git checkout $improve_branch
-fi    
+fi
 cd ../$model_name
 )
 if (( $? != 0 ))
