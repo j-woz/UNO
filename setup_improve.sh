@@ -25,7 +25,7 @@ fi
 export IMPROVE_DATA_DIR="./$data_dir/"
 
 # Clone IMPROVE lib (if needed)
-cd ../
+pushd ../
 improve_lib_path=$PWD/IMPROVE
 improve_branch="develop"
 if [[ -d $improve_lib_path ]]; then
@@ -34,14 +34,17 @@ else
     git clone https://github.com/JDACS4C-IMPROVE/IMPROVE
 fi
 
-cd IMPROVE
+pushd IMPROVE
 branch_name="$(git branch --show-current)"
 if [[ "$branch_name" == "$improve_branch" ]]; then
     echo "On the correct branch, ${improve_branch}"
 else
     git checkout $improve_branch
-fi    
-cd ../$model_name
+fi
+
+popd
+popd
+echo $improve_lib_path > $PWD/.setup-python-path.sh
 )
 if (( $? != 0 ))
 then
@@ -50,7 +53,7 @@ then
 fi
 
 # Run these environment changes in the user shell:
-export PYTHONPATH=$PWD/IMPROVE
+export PYTHONPATH=$( cat $PWD/.setup-python-path.sh )
 export IMPROVE_DATA_DIR="./$data_dir/"
 
 echo
