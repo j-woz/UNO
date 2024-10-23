@@ -78,6 +78,8 @@ pip install pyarrow==12.0.1
 pip install pyyaml pandas scikit-learn
 ```
 
+You can use `setup_deps.sh` to help automate installing these dependencies.
+
 ### 3. Run `setup_improve.sh`.
 ```bash
 source setup_improve.sh
