@@ -38,6 +38,17 @@ from uno_utils_improve import (
     clean_arrays, check_array
 )
 
+########## LOSS FUNCTIONS ###################
+def mae_poly_loss(alpha):
+    def loss(y_true, y_pred):
+        mae = tf.abs(y_true - y_pred)
+        second = (1-y_true)**alpha
+        
+        return tf.reduce_mean(mae*second)
+    return loss
+
+
+################################
 # Check TensorFlow and GPU
 print("TensorFlow Version:")
 print(tf.__version__)
@@ -194,7 +205,7 @@ def run(params: Dict):
 
     # Compile model
     model = Model(inputs=all_input, outputs=output)
-    model.compile(optimizer=optimizer, loss="mean_squared_error")
+    model.compile(optimizer=optimizer, loss=mae_poly_loss(2))
 
     if train_debug:
         model.summary()
