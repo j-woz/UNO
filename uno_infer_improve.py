@@ -23,6 +23,17 @@ from uno_utils_improve import (
     check_array, calculate_sstot
 )
 
+
+########## LOSS FUNCTIONS ###################
+def mae_poly_loss(alpha):
+    def loss(y_true, y_pred):
+        mae = tf.abs(y_true - y_pred)
+        second = (1-y_true)**alpha
+        
+        return tf.reduce_mean(mae*second)
+    return loss
+
+
 # Set filepath to the directory where the script is located
 filepath = Path(__file__).resolve().parent  
 
@@ -76,8 +87,8 @@ def run(params: Dict):
         model_dir=params["input_model_dir"]
     )
     # Load the pre-trained model
-    model = load_model(modelpath)
-
+    model = load_model(modelpath, compile=False)
+    model.compile(optimizer = "Adam", loss = mae_poly_loss(2))
     # Create data generator for batch predictions
     generator_batch_size = params["generator_batch_size"]
     test_steps = int(np.ceil(len(ts_rsp) / generator_batch_size))

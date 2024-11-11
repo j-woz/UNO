@@ -47,6 +47,100 @@ def mae_poly_loss(alpha):
         return tf.reduce_mean(mae*second)
     return loss
 
+class CustomFbetaMetric2(tf.keras.metrics.Metric):
+    def __init__(self, beta=1.5, threshold=0.3, name='custom2_fbeta_score', **kwargs):
+        super(CustomFbetaMetric2, self).__init__(name=name, **kwargs)
+        self.beta = beta
+        self.threshold = threshold
+        # self.num_classes = num_classes
+        self.fbeta_score = tf.keras.metrics.FBetaScore( beta=self.beta)
+        # self.precision_metric = tf.keras.metrics.Precision()
+        # self.recall_metric = tf.keras.metrics.Recall()
+
+    # def discretize(self, y_true, y_pred, sample_weight=None):
+    #     # Using np.where to discretize y_pred and y_true
+        
+    #     return y_true, y_pred
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        # Use numpy function for discretization
+        # y_true, y_pred = self.discretize(y_true, y_pred)
+        
+        y_pred_disc = tf.where(y_pred >= self.threshold, 0, 1)
+        y_true_disc = tf.where(y_true >= self.threshold, 0, 1)
+        
+        # self.precision_metric.update_state(y_true_disc, y_pred_disc, sample_weight=sample_weight)
+        # self.recall_metric.update_state(y_true_disc, y_pred_disc, sample_weight=sample_weight)
+        y_pred_disc = tf.cast(y_pred_disc, tf.float32)
+        y_true_disc = tf.cast(y_true_disc, tf.float32)
+        
+        # Update the state using the fbeta_score metric
+        self.fbeta_score.update_state(y_true_disc, y_pred_disc, sample_weight=sample_weight)
+
+    def result(self):
+        # precision = self.precision_metric.result()
+        # recall = self.recall_metric.result()
+        
+        # beta_squared = self.beta ** 2
+        # fbeta = (1 + beta_squared) * (precision * recall) / (beta_squared * precision + recall + tf.keras.backend.epsilon())
+        fbeta = self.fbeta_score.result()
+        return fbeta
+
+    def reset_states(self):
+        # self.precision_metric.reset_states()
+        # self.recall_metric.reset_states()
+        self.fbeta_score.reset_states()
+
+
+class CustomFbetaMetric(tf.keras.metrics.Metric):
+    def __init__(self, beta=1.5, threshold=0.5, name='custom_fbeta_score', **kwargs):
+        super(CustomFbetaMetric, self).__init__(name=name, **kwargs)
+        self.beta = beta
+        self.threshold = threshold
+        
+        self.precision_metric = tf.keras.metrics.Precision()
+        self.recall_metric = tf.keras.metrics.Recall()
+
+    # def discretize(self, y_true, y_pred, sample_weight=None):
+    #     # Using np.where to discretize y_pred and y_true
+        
+    #     return y_true, y_pred
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        # Use numpy function for discretization
+        # y_true, y_pred = self.discretize(y_true, y_pred)
+        
+        y_pred_disc = tf.where(y_pred >= self.threshold, 0, 1)
+        y_true_disc = tf.where(y_true >= self.threshold, 0, 1)
+        # print(y_true)
+        # y_pred_disc = tf.where(y_pred >= self.threshold, 1, 0)
+        # y_true_disc = tf.where(y_true >= self.threshold, 1, 0)
+        
+        # y_pred_disc = tf.where(y_pred < self.threshold, 1, 0)
+        # y_true_disc = tf.where(y_true < self.threshold, 1, 0)
+        
+        self.precision_metric.update_state(y_true_disc, y_pred_disc, sample_weight=sample_weight)
+        self.recall_metric.update_state(y_true_disc, y_pred_disc, sample_weight=sample_weight)
+        
+        
+        # self.precision_metric.update_state(y_true, y_pred_disc, sample_weight=sample_weight)
+        # self.recall_metric.update_state(y_true, y_pred_disc, sample_weight=sample_weight)
+        # Update the state using the fbeta_score metric
+        # self.fbeta_score.update_state(y_true, y_pred, sample_weight=sample_weight)
+
+    def result(self):
+        precision = self.precision_metric.result()
+        recall = self.recall_metric.result()
+        
+        beta_squared = self.beta ** 2
+        fbeta = (1 + beta_squared) * (precision * recall) / (beta_squared * precision + recall + tf.keras.backend.epsilon())
+        return fbeta
+
+    def reset_states(self):
+        self.precision_metric.reset_states()
+        self.recall_metric.reset_states()
+
+
 
 ################################
 # Check TensorFlow and GPU
@@ -56,6 +150,10 @@ print(tf.config.list_physical_devices('GPU'))
 
 # Get the current file path
 filepath = Path(__file__).resolve().parent
+
+# For TensorFlow 2.16, this would be the integer 16:
+tf_minor_version = int(tf.__version__.split(".")[1])
+
 
 # Define parameters
 preprocess_params = app_preproc_params + model_preproc_params
@@ -213,9 +311,14 @@ def run(params: Dict):
     steps_per_epoch = int(np.ceil(len(tr_rsp) / batch_size))
     validation_steps = int(np.ceil(len(vl_rsp) / generator_batch_size))
 
+    if tf_minor_version >= 16:
+        learning_rate = model.optimizer.learning_rate
+    else:
+        learning_rate = model.optimizer.lr
+
     # Instantiate callbacks
     lr_scheduler = LearningRateScheduler(
-        lambda epoch: warmup_scheduler(epoch, model.optimizer.lr, warmup_epochs, initial_lr, max_lr, warmup_type)
+        lambda epoch: warmup_scheduler(epoch, learning_rate, warmup_epochs, initial_lr, max_lr, warmup_type)
     )
 
     reduce_lr = ReduceLROnPlateau(
