@@ -259,6 +259,9 @@ def run(params: Dict):
     global time_per_epoch 
     time_per_epoch = (epoch_end_time - epoch_start_time) / total_epochs
 
+    modelpath = str(modelpath) + ".h5"
+    print("save to: " + str(modelpath))
+    
     # Save model
     model.save(modelpath)
 
