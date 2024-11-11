@@ -148,6 +148,9 @@ print("TensorFlow Version:")
 print(tf.__version__)
 print(tf.config.list_physical_devices('GPU'))
 
+# For TensorFlow 2.16, this would be the integer 16:
+tf_minor_version = int(tf.__version__.split(".")[1])
+
 # Get the current file path
 filepath = Path(__file__).resolve().parent
 
@@ -365,6 +368,9 @@ def run(params: Dict):
     global time_per_epoch 
     time_per_epoch = (epoch_end_time - epoch_start_time) / total_epochs
 
+    modelpath = str(modelpath) + ".h5"
+    print("save to: " + str(modelpath))
+    
     # Save model
     model.save(modelpath)
 
