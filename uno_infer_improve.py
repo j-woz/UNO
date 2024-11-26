@@ -22,16 +22,7 @@ from uno_utils_improve import (
     data_merge_generator, batch_predict, print_duration, clean_arrays,
     check_array, calculate_sstot
 )
-
-
-########## LOSS FUNCTIONS ###################
-def mae_poly_loss(alpha):
-    def loss(y_true, y_pred):
-        mae = tf.abs(y_true - y_pred)
-        second = (1-y_true)**alpha
-        
-        return tf.reduce_mean(mae*second)
-    return loss
+from mae_poly_loss import mae_poly_loss
 
 
 # Set filepath to the directory where the script is located
@@ -88,7 +79,7 @@ def run(params: Dict):
     )
     # Load the pre-trained model
     model = load_model(modelpath, compile=False)
-    model.compile(optimizer = "Adam", loss = mae_poly_loss(2))
+    model.compile(optimizer = "Adam", loss = "mse")
     # Create data generator for batch predictions
     generator_batch_size = params["generator_batch_size"]
     test_steps = int(np.ceil(len(ts_rsp) / generator_batch_size))
