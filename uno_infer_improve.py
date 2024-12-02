@@ -76,7 +76,12 @@ def run(params: Dict):
         model_dir=params["input_model_dir"]
     )
     # Load the pre-trained model
-    model = load_model(modelpath)
+    print("loading model: '%s'" % modelpath)
+    try:
+        model = load_model(modelpath)
+    except IOError as e:
+        print("model load failed: " + str(e))
+        exit(1)
 
     # Create data generator for batch predictions
     generator_batch_size = params["generator_batch_size"]
