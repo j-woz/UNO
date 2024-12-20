@@ -802,6 +802,17 @@ model_train_params = [
         "type": str,
         "default": "relu",
         "help": "Activation for ninth interaction layer.",
+    },
+    {
+        "name": "custom_loss_module",
+        "type": str,
+        "default": None,
+        "help": "Importable module name for custom loss function"
+    },
+    {
+        "name": "alpha",
+        "type": float,
+        "default": None,
+        "help": "Value of alpha for custom loss function"
     }
-
 ]

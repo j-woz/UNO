@@ -182,6 +182,20 @@ def read_architecture(params, hyperparam_space, arch_type):
             layers_activation.append(params[f"{arch_type}_layer_{i+1}_activation"])
     return num_layers, layers_size, layers_dropout, layers_activation
 
+
+def import_custom_loss_fn(params):
+    import importlib
+
+    custom_loss_name = params["custom_loss_module"]
+    print("import_custom_loss_fn: importing '%s' ..." %
+          custom_loss_name)
+
+    loss_module = importlib.import_module(custom_loss_name)
+    loss_function = loss_module.construct(params)
+
+    return loss_function
+
+
 def run(params: Dict):
     """Run model training."""
     # Record start time
@@ -297,7 +311,14 @@ def run(params: Dict):
 
     # Compile model
     model = Model(inputs=all_input, outputs=output)
-    model.compile(optimizer=optimizer, loss="mse")
+
+    # Default to normal TensorFlow MSE loss function
+    loss_function = "mse"
+    if params["custom_loss_module"] is not None:
+        loss_function = import_custom_loss_fn(params)
+
+    # Compile the model!
+    model.compile(optimizer=optimizer, loss=loss_function)
 
     if train_debug:
         model.summary()
