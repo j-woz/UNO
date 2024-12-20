@@ -70,7 +70,7 @@ git checkout develop
 ### 2. Set computational environment
 Create conda environment
 ```bash
-conda create --name Uno_IMPROVE python=3.8  -y
+conda create --name Uno_IMPROVE python=3.8 pip -y
 conda activate Uno_IMPROVE
 pip install protobuf==3.19.6
 pip install tensorflow-gpu==2.10.0
