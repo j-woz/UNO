@@ -15,6 +15,9 @@ PV=$( python --version )
 # Package tensorflow-gpu goes up to 2.21
 # Package tensorflow     continues after that
 
+echo PV=$PV
+echo
+
 if [[ $PV == "Python 3.8"* ]]  # Up to TF 2.13
 then
   # PROTOBUF="protobuf==3.19.6"
@@ -27,13 +30,13 @@ then
   TENSORFLOW="tensorflow==2.15.0"        # Requires CUDA 12.2
 
 else  # >= 3.9
-  PROTOBUF="protobuf==3.20.3"
-  TENSORFLOW="tensorflow==2.16.1"
+  PROTOBUF= # "protobuf==3.20.3"
+  TENSORFLOW=  # "tensorflow==2.16.1"
 fi
 
 DEPS=( $PROTOBUF $TENSORFLOW
        "pyarrow==12.0.1"
-       pyyaml pandas scikit-learn
+       pyyaml pandas scikit-learn fastparquet
      )
 
 set -x
