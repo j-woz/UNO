@@ -1,6 +1,7 @@
 
 """
 MAE POLY LOSS
+MOVED to https://github.com/JDACS4C-IMPROVE/mae_poly_loss
 """
 
 
