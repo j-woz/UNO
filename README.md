@@ -68,17 +68,11 @@ git checkout develop
 
 
 ### 2. Set computational environment
-Create conda environment
+Create conda environment using the provided environment file:
 ```bash
-conda create --name Uno_IMPROVE python=3.8 pip -y
-conda activate Uno_IMPROVE
-pip install protobuf==3.19.6
-pip install tensorflow-gpu==2.10.0
-pip install pyarrow==12.0.1
-pip install pyyaml pandas scikit-learn
+conda env create -f conda_env.yml
+conda activate uno_env
 ```
-
-You can use `setup_deps.sh` to help automate installing these dependencies.
 
 ### 3. Run `setup_improve.sh`.
 ```bash
