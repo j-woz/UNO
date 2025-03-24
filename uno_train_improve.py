@@ -24,6 +24,19 @@ import improvelib.utils as frm
 # Import parameters
 from params import app_preproc_params, model_preproc_params, app_train_params, model_train_params
 
+# Compatibility function for setting and accessing learning rate
+def set_learning_rate(optimizer, lr):
+    if hasattr(optimizer, "learning_rate"):  # TensorFlow 2.2 and later
+        optimizer.learning_rate = lr
+    else:  # For TensorFlow versions before 2.2
+        optimizer.lr = lr
+
+def get_learning_rate(optimizer):
+    if hasattr(optimizer, "learning_rate"):  # TensorFlow 2.2 and later
+        return optimizer.learning_rate
+    else:  # For TensorFlow versions before 2.2
+        return optimizer.lr
+
 # Import custom utility functions
 from uno_utils_improve import (
     data_merge_generator, 
@@ -202,9 +215,12 @@ def run(params: Dict):
     steps_per_epoch = int(np.ceil(len(tr_rsp) / batch_size))
     validation_steps = int(np.ceil(len(vl_rsp) / generator_batch_size))
 
+    # Set initial learning rate based on TensorFlow version
+    set_learning_rate(optimizer, initial_lr)
+
     # Instantiate callbacks
     lr_scheduler = LearningRateScheduler(
-        lambda epoch: warmup_scheduler(epoch, model.optimizer.lr, warmup_epochs, initial_lr, max_lr, warmup_type)
+        lambda epoch: warmup_scheduler(epoch, get_learning_rate(optimizer), warmup_epochs, initial_lr, max_lr, warmup_type)
     )
 
     reduce_lr = ReduceLROnPlateau(
