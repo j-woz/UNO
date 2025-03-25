@@ -1,6 +1,6 @@
-name: uno_env
+name: uno_env2
 channels:
-  - conda-forge  # Prioritize conda-forge
+  - conda-forge
   - defaults
 dependencies:
   - python=3.10
@@ -17,4 +17,4 @@ dependencies:
   - fastparquet  # Let conda-forge choose
   - pyarrow  # Let conda-forge choose
   - pip:
-    - improvelib
+      - "git+https://github.com/JDACS4C-IMPROVE/IMPROVE.git@develop#egg=improvelib"
