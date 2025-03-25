@@ -1,4 +1,4 @@
-name: uno_env2
+name: uno_env
 channels:
   - conda-forge
   - defaults
