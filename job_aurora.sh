@@ -12,7 +12,7 @@ NRANKS_PER_NODE=12 # Run 12 ranks per node (1 per tile)
 NDEPTH=1         # CPU threads per rank (spacing). Adjust based on performance/binding needs.
 NTHREADS=1       # OMP_NUM_THREADS. Set to 1 if each rank uses only its tile resources.
 CONDA_ENV_NAME="new_env_name" # Name of your conda environment
-SCRIPT_DIR="/home/rjain/UNO" # Directory containing uno_train.sh and other python files
+SCRIPT_DIR="/home/rjain/UNO" # Directory containing aurora_train_uno.sh and other python files
 # --- End Configuration ---
 
 # Calculate total ranks based on PBS allocation
@@ -24,6 +24,19 @@ else
 fi
 NTOTRANKS=$(( NNODES * NRANKS_PER_NODE ))
 
+# --- Proxy Configuration ---
+# Set up proxy for ALCF
+# This is necessary for accessing external resources (e.g., git, conda) from ALCF
+
+export HTTP_PROXY=http://proxy.alcf.anl.gov:3128
+export HTTPS_PROXY=http://proxy.alcf.anl.gov:3128
+export http_proxy=http://proxy.alcf.anl.gov:3128
+export https_proxy=http://proxy.alcf.anl.gov:3128
+git config --global http.proxy http://proxy.alcf.anl.gov:3128
+module use /soft/modulefiles
+
+# --- Job Information ---
+echo "--------------------"
 echo "Job Details:"
 echo "Nodes: ${NNODES}"
 echo "Ranks per Node: ${NRANKS_PER_NODE}"
@@ -49,7 +62,7 @@ cd "${SCRIPT_DIR}" || { echo "Error: Failed to cd to ${SCRIPT_DIR}."; exit 1; }
 echo "Launching MPI job with 1 rank per GPU tile..."
 
 # --- Run the Wrapper Script via mpiexec ---
-# Launch 12 ranks per node. The wrapper script (run_h.sh) will handle setting ZE_AFFINITY_MASK
+# Launch 12 ranks per node. The wrapper script (aurora_train_uno.sh) will handle setting ZE_AFFINITY_MASK
 # and passing rank/gpu/tile arguments to the python script.
 # CPU binding (--cpu-bind) might need refinement.
 mpiexec -n ${NTOTRANKS} -ppn ${NRANKS_PER_NODE} --depth=${NDEPTH} --cpu-bind depth \

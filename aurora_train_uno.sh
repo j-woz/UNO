@@ -10,7 +10,7 @@ GLOBAL_RANK_ID="-1"
 if [[ -n "$PALS_RANKID" ]]; then
   GLOBAL_RANK_ID="$PALS_RANKID"
 else
-  echo "Error (Global Rank): run_h.sh could not determine Global MPI rank ID from PALS_RANKID." >&2
+  echo "Error (Global Rank): aurora_train_uno.sh could not determine Global MPI rank ID from PALS_RANKID." >&2
   exit 1
 fi
 
@@ -19,7 +19,7 @@ LOCAL_RANK_ID="-1"
 if [[ -n "$PALS_LOCAL_RANKID" ]]; then
   LOCAL_RANK_ID="$PALS_LOCAL_RANKID"
 else
-  echo "Error (Local Rank): run_h.sh could not determine Local MPI rank ID from PALS_LOCAL_RANKID." >&2
+  echo "Error (Local Rank): aurora_train_uno.sh could not determine Local MPI rank ID from PALS_LOCAL_RANKID." >&2
   exit 1
 fi
 
@@ -35,15 +35,15 @@ echo "Rank ${GLOBAL_RANK_ID} (Local ${LOCAL_RANK_ID}): Calculated Target GPU=${T
 # --- Execute the Python Script ---
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 PYTHON_EXE="$CONDA_PREFIX/bin/python"
-PYTHON_SCRIPT="$SCRIPT_DIR/h.py"
 
 echo "Rank ${GLOBAL_RANK_ID}: Launching ${PYTHON_EXE} ./uno_train_improve.py --input_dir exp_result --output_dir exp_result${TARGET_GPU}_${TARGET_TILE}"
 
 # Execute python, passing global rank, target gpu, and target tile as arguments
-# Any extra arguments ($@) received by run_h.sh are passed at the end
+# Any extra arguments ($@) received by this script are passed at the end
 "$PYTHON_EXE" ./uno_train_improve.py \
     --input_dir exp_result \
-    --output_dir "exp_result${TARGET_GPU}_${TARGET_TILE}"
+    --output_dir "exp_result${TARGET_GPU}_${TARGET_TILE} \
+    $@"
 
 EXIT_CODE=$?
 echo "Rank ${GLOBAL_RANK_ID}: Python script finished with exit code ${EXIT_CODE}"
