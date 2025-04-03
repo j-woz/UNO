@@ -8,7 +8,7 @@
 #PBS -A candle_aesp_CNDA
 
 # --- Configuration ---
-NRANKS_PER_NODE=12 # Run 12 ranks per node (1 per tile)
+NRANKS_PER_NODE=2 # Run 12 ranks per node (1 per tile)
 NDEPTH=1         # CPU threads per rank (spacing). Adjust based on performance/binding needs.
 NTHREADS=1       # OMP_NUM_THREADS. Set to 1 if each rank uses only its tile resources.
 CONDA_ENV_NAME="new_env_name" # Name of your conda environment
