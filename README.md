@@ -1,8 +1,10 @@
 # UNO
 
-This repository demonstrates how to use the [IMPROVE library v0.1.0-alpha](https://jdacs4c-improve.github.io/docs/v0.1.0-alpha/) for building a drug response prediction (DRP) model using UNO, and provides examples with the benchmark [cross-study analysis (CSA) dataset](https://web.cels.anl.gov/projects/IMPROVE_FTP/candle/public/improve/benchmarks/single_drug_drp/benchmark-data-pilot1/csa_data/).
+The UNO model consists of two fully connected neural network branches for separately embedding the drug and cell line features, then a third fully connected neural network to regress on the combined embedded features. UNO was one of the benchmark models in the CANDLE project for cancer drug response.
 
-This version, tagged as `v0.1.0-alpha`, introduces a new API which is designed to encourage broader adoption of IMPROVE and its curated models by the research community.
+This repository uses the [IMPROVE API](https://jdacs4c-improve.github.io/docs/content/API.html) for building this drug response prediction (DRP) model. It uses the[cross-study analysis (CSA) dataset](https://web.cels.anl.gov/projects/IMPROVE_FTP/candle/public/improve/benchmarks/single_drug_drp/benchmark-data-pilot1/csa_data/).
+
+The `workflows` folder provides examples for `cross study analysis`, `learning curve analysis` and `deephyper hyperparameter optimization`
 
 ## Dependencies
 Installation instuctions are detailed below in [Step-by-step instructions](#step-by-step-instructions).
@@ -11,7 +13,7 @@ ML framework:
 + [TensorFlow](https://www.tensorflow.org/) -- deep learning framework for building the prediction model
 
 IMPROVE dependencies:
-+ [IMPROVE v0.1.0-alpha](https://jdacs4c-improve.github.io/docs/v0.1.0-alpha/)
++ [IMPROVE Library](https://github.com/JDACS4C-IMPROVE/IMPROVE)
 
 
 ## Dataset
@@ -68,17 +70,11 @@ git checkout develop
 
 
 ### 2. Set computational environment
-Create conda environment
+Create conda environment using the provided environment file:
 ```bash
-conda create --name Uno_IMPROVE python=3.8 pip -y
-conda activate Uno_IMPROVE
-pip install protobuf==3.19.6
-pip install tensorflow-gpu==2.10.0
-pip install pyarrow==12.0.1
-pip install pyyaml pandas scikit-learn
+conda env create -f conda_env.yml
+conda activate uno_env
 ```
-
-You can use `setup_deps.sh` to help automate installing these dependencies.
 
 ### 3. Run `setup_improve.sh`.
 ```bash
@@ -91,6 +87,8 @@ This will:
 3. Set `PYTHONPATH` (adds IMPROVE repo).
 4. Set `IMPROVE_DATA_DIR`.
 5. Note that you must run this to setup the path variables every time you log in.  Installation is skipped if the directories already exist.
+
+Alternatively, just set the IMPROVE_DATA_DIR after step 2. The new updates to conda_env.yml already installs `improvelib`.
 
 
 ### 4. Preprocess CSA benchmark data (_raw data_) to construct model input data (_ML data_)
