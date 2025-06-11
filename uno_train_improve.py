@@ -392,7 +392,7 @@ def run(params: Dict):
         train_gen,
         validation_data=val_gen,
         steps_per_epoch=steps_per_epoch,
-        # validation_steps=validation_steps,
+        validation_steps=validation_steps,
         epochs=epochs,
         callbacks=[r2_callback, lr_scheduler, reduce_lr, early_stopping],
     )
