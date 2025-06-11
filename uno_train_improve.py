@@ -436,6 +436,19 @@ def run(params: Dict):
         
     return val_scores
 
+
+def initialize_parameters():
+    additional_definitions = preprocess_params + train_params
+    cfg = DRPTrainConfig()
+    params = cfg.initialize_parameters(
+        pathToModelDir=filepath,
+        default_config="uno_default_model.txt",
+        additional_definitions=additional_definitions,
+        required=None,
+    )
+    return params
+
+
 def main(args):
     train_start_time = time.time()
     """Main function to run the model training."""
