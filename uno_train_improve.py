@@ -211,6 +211,23 @@ def import_custom_loss_fn(params):
 
 def run(params: Dict):
     """Run model training."""
+
+    (tr_ge, tr_md, tr_rsp, num_ge_columns, num_md_columns) = \
+        load_data(params, stage="train")
+         
+    (vl_ge, vl_md, vl_rsp, num_ge_columns, num_md_columns) = \
+        load_data(params, stage="val")
+
+    do_train(params, 
+             tr_ge, tr_md, tr_rsp, 
+             vl_ge, vl_md, vl_rsp,
+             num_ge_columns, num_md_columns)
+
+    
+def do_train(params: Dict,
+             tr_ge, tr_md, tr_rsp, 
+             vl_ge, vl_md, vl_rsp,
+             num_ge_columns, num_md_columns):
     # Record start time
     train_start_time = time.time()
 
@@ -257,44 +274,7 @@ def run(params: Dict):
         print("DRUG LAYERS:", drug_layers_size, drug_layers_dropout, drug_layers_activation)
         print("INTERACTION LAYERS:", interaction_layers_size, interaction_layers_dropout, interaction_layers_activation)
         print("REGRESSION LAYER:", regression_activation)
-
-    # Create file names and load data
-    train_data_fname = frm.build_ml_data_file_name(data_format=params["data_format"], stage="train")
-    train_ge_fname = f"ge_{train_data_fname}"
-    train_md_fname = f"md_{train_data_fname}"
-    train_rsp_fname = f"rsp_{train_data_fname}"
-    tr_ge = pd.read_parquet(Path(params["input_dir"])/train_ge_fname)
-    tr_md = pd.read_parquet(Path(params["input_dir"])/train_md_fname)
-    tr_rsp = pd.read_parquet(Path(params["input_dir"])/train_rsp_fname)
-
-    val_data_fname = frm.build_ml_data_file_name(data_format=params["data_format"], stage="val")
-    val_ge_fname = f"ge_{val_data_fname}"
-    val_md_fname = f"md_{val_data_fname}"
-    val_rsp_fname = f"rsp_{val_data_fname}"
-    vl_ge = pd.read_parquet(Path(params["input_dir"])/val_ge_fname)
-    vl_md = pd.read_parquet(Path(params["input_dir"])/val_md_fname)
-    vl_rsp = pd.read_parquet(Path(params["input_dir"])/val_rsp_fname)
-
-    if train_subset_data:
-        total_num_samples = 5000
-        stage_proportions = {"train": 0.8, "val": 0.1, "test": 0.1}
-        tr_rsp = subset_data(tr_rsp, "Train", total_num_samples, stage_proportions)
-        vl_rsp = subset_data(vl_rsp, "Validation", total_num_samples, stage_proportions)
-
-    if train_debug:
-        print("TRAIN DATA:", tr_rsp.head(), tr_rsp.shape)
-        print("VAL DATA:", vl_rsp.head(), vl_rsp.shape)
-
-    # Merge one row to get feature sets
-    row = tr_rsp.iloc[0:1]
-    merged_row = pd.merge(row, tr_ge, on=params["canc_col_name"], how="inner")
-    merged_row = pd.merge(merged_row, tr_md, on=params["drug_col_name"], how="inner")
-    if train_debug:
-        print(merged_row.head(), merged_row.shape)
-
-    num_ge_columns = len([col for col in merged_row.columns if col.startswith('ge')])
-    num_md_columns = len([col for col in merged_row.columns if col.startswith('mordred')])
-
+        
     # Define model inputs
     all_input = Input(shape=(num_ge_columns + num_md_columns,), name="all_input")
     canc_input = Lambda(lambda x: x[:, :num_ge_columns])(all_input)
@@ -434,7 +414,7 @@ def run(params: Dict):
             output_dir=params["output_dir"]
         )
         
-    return val_scores
+    return model, val_scores
 
 
 def initialize_parameters():
@@ -447,6 +427,46 @@ def initialize_parameters():
         required=None,
     )
     return params
+
+
+def load_data(params, stage):
+    # Create file names and load data
+    data_format = params["data_format"]
+    train_debug = params["train_debug"]
+    train_subset_data = params["train_subset_data"]
+    
+    data_fname = frm.build_ml_data_file_name(data_format=data_format,
+                                             stage=stage)
+    ge_fname = f"ge_{data_fname}"
+    md_fname = f"md_{data_fname}"
+    rsp_fname = f"rsp_{data_fname}"
+    ge = pd.read_parquet(Path(params["input_dir"])/ge_fname)
+    md = pd.read_parquet(Path(params["input_dir"])/md_fname)
+    rsp = pd.read_parquet(Path(params["input_dir"])/rsp_fname)
+
+    if train_subset_data:
+        total_num_samples = 5000
+        stage_proportions = {"train": 0.8, "val": 0.1, "test": 0.1}
+        if stage == "train":
+            rsp = subset_data(rsp, "Train", total_num_samples, stage_proportions)
+        elif stage == "val":
+            rsp = subset_data(vl_rsp, "Validation", total_num_samples, stage_proportions)
+
+    if train_debug:
+        print("DATA %s: " % stage, rsp.head(), rsp.shape)
+
+    # Merge one row to get feature sets    
+    row = rsp.iloc[0:1]
+    merged_row = pd.merge(row, ge, on=params["canc_col_name"], how="inner")
+    merged_row = pd.merge(merged_row, md, on=params["drug_col_name"], how="inner")
+    if train_debug:
+        print("merged: ", merged_row.head(), merged_row.shape)
+
+    num_ge_columns = len([col for col in merged_row.columns if col.startswith('ge')])
+    num_md_columns = len([col for col in merged_row.columns if col.startswith('mordred')])
+
+    return (ge, md, rsp,
+            num_ge_columns, num_md_columns)
 
 
 def main(args):

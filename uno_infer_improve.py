@@ -1,3 +1,5 @@
+
+import json
 import time
 import os
 import sys
@@ -24,7 +26,7 @@ from uno_utils_improve import (
 )
 
 from mae_poly_loss import mae_poly_loss
-from uno_train_improve import import_custom_loss_fn
+from uno_train_improve import import_custom_loss_fn, load_data
 
 # Set filepath to the directory where the script is located
 filepath = Path(__file__).resolve().parent  
@@ -56,19 +58,16 @@ def run(params: Dict):
     Returns:
         bool: True if inference completes successfully.
     """
-    # ------------------------------------------------------
-    # Create filenames and load test set data
-    # ------------------------------------------------------
-    test_data_fname = frm.build_ml_data_file_name(data_format=params["data_format"], stage="test")
-    test_ge_fname = f"ge_{test_data_fname}"
-    test_md_fname = f"md_{test_data_fname}"
-    test_rsp_fname = f"rsp_{test_data_fname}"
 
-    # Load test data from input directory
-    ts_ge = pd.read_parquet(Path(params["input_data_dir"]) / test_ge_fname)
-    ts_md = pd.read_parquet(Path(params["input_data_dir"]) / test_md_fname)
-    ts_rsp = pd.read_parquet(Path(params["input_data_dir"]) / test_rsp_fname)
+    (ge, md, rsp, num_ge_columns, num_md_columns) = \
+        load_data(params, stage="test")
 
+    model = do_load_model(params)
+    
+    do_infer(params, model, ge, md, rsp)
+
+    
+def do_load_model(params):
     # ------------------------------------------------------
     # Load best model and compute predictions
     # ------------------------------------------------------
@@ -82,21 +81,28 @@ def run(params: Dict):
     # model = load_model(modelpath, compile=False)
     # model.compile(optimizer = "Adam", loss = "mse")
     print("loading model: '%s'" % modelpath)
+   
     try:
         loss_function = "mse"
-         if params["custom_loss_module"] is not None:
-             loss_function = import_custom_loss_fn(params)
-         model = load_model(modelpath, compile=False)
-         model.compile(optimizer = "Adam", loss = loss_function)
+        if "custom_loss_module" in params and \
+           params["custom_loss_module"] is not None:
+           loss_function = import_custom_loss_fn(params)
+        model = load_model(modelpath, compile=False)
+        model.compile(optimizer = "Adam", loss = loss_function)
     except IOError as e:
         print("model load failed: " + str(e))
         exit(1)
+        
+    return model
 
+    
+def do_infer(params, model, ge, md, rsp):
+    
     # Create data generator for batch predictions
     generator_batch_size = params["generator_batch_size"]
-    test_steps = int(np.ceil(len(ts_rsp) / generator_batch_size))
+    test_steps = int(np.ceil(len(rsp) / generator_batch_size))
     test_gen = data_merge_generator(
-        ts_rsp, ts_ge, ts_md, generator_batch_size, 
+        rsp, ge, md, generator_batch_size, 
         params, merge_preserve_order=True, verbose=False
     )
 
@@ -126,7 +132,7 @@ def run(params: Dict):
             metric_type=params["metric_type"],
             output_dir=params["output_dir"]
         )
-
+        
     return True
 
 
