@@ -22,8 +22,9 @@ from uno_utils_improve import (
     data_merge_generator, batch_predict, print_duration, clean_arrays,
     check_array, calculate_sstot
 )
-from mae_poly_loss import mae_poly_loss
 
+from mae_poly_loss import mae_poly_loss
+from uno_train_improve import import_custom_loss_fn
 
 # Set filepath to the directory where the script is located
 filepath = Path(__file__).resolve().parent  
@@ -82,7 +83,11 @@ def run(params: Dict):
     # model.compile(optimizer = "Adam", loss = "mse")
     print("loading model: '%s'" % modelpath)
     try:
-        model = load_model(modelpath)
+        loss_function = "mse"
+         if params["custom_loss_module"] is not None:
+             loss_function = import_custom_loss_fn(params)
+         model = load_model(modelpath, compile=False)
+         model.compile(optimizer = "Adam", loss = loss_function)
     except IOError as e:
         print("model load failed: " + str(e))
         exit(1)
