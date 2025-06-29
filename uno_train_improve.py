@@ -21,6 +21,9 @@ from improvelib.applications.drug_response_prediction.config import DRPTrainConf
 from improvelib.utils import str2bool
 import improvelib.utils as frm
 
+import ckpt_utils
+import ckpt_keras_utils
+
 # Import parameters
 from params import app_preproc_params, model_preproc_params, app_train_params, model_train_params
 
@@ -305,6 +308,18 @@ def do_train(params: Dict,
     # Compile model
     model = Model(inputs=all_input, outputs=output)
 
+    ckpt = ckpt_keras_utils.CandleCkptKeras(params, verbose=True)
+    ckpt.set_model(model)
+    J = ckpt.restart(params)
+    print("J: " + str(J))
+
+    initial_epoch = 0
+    if J is not None:
+        initial_epoch = J["epoch"]
+        best_metric_last = J["best_metric_last"]
+        params["ckpt_best_metric_last"] = best_metric_last
+        print("initial_epoch: %i" % initial_epoch)
+
     # Default to normal TensorFlow MSE loss function
     loss_function = "mse"
     if params["custom_loss_module"] is not None:
@@ -374,16 +389,31 @@ def do_train(params: Dict,
         steps_per_epoch=steps_per_epoch,
         validation_steps=validation_steps,
         epochs=epochs,
-        callbacks=[r2_callback, lr_scheduler, reduce_lr, early_stopping],
+        callbacks=[r2_callback, lr_scheduler, reduce_lr, early_stopping, ckpt],
+        initial_epoch=initial_epoch
     )
     print("model.fit() done")
     sys.stdout.flush()
     epoch_end_time = time.time()
-    total_epochs = len(history.history['loss'])
-    global time_per_epoch 
-    time_per_epoch = (epoch_end_time - epoch_start_time) / total_epochs
 
-    modelpath = str(modelpath) + ".h5"
+    global time_per_epoch
+    time_per_epoch = 0
+
+    if "loss" in history.history:
+        history_length = len(history.history["loss"])
+        print("history_length: %i" % history_length)
+        history_expected = args.epochs - initial_epoch
+        if history_length == history_expected:
+            msg = "stopping: complete"
+        elif history_length < history_expected:
+            msg = "stopping: early"
+        else:
+            msg = "stopping: unexpected extra epochs!"
+        print(msg)
+        time_per_epoch = \
+            (epoch_end_time - epoch_start_time) / history_length
+
+    modelpath = str(modelpath)
     print("save to: " + str(modelpath))
     
     # Save model
