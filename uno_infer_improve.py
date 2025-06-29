@@ -107,7 +107,17 @@ def do_infer(params, model, ge, md, rsp):
     )
 
     # Perform batch predictions
-    test_pred, test_true = batch_predict(model, test_gen, test_steps)
+    try:
+        test_pred, test_true = batch_predict(model, test_gen, test_steps)
+    except ValueError as e:
+        print("ValueError in batch_predict(): \n" + str(e))
+        sys.stdout.flush()
+        output_dir = params["output_dir"]
+        with open(output_dir + "/test-empty.txt", "w") as fp:
+            fp.write("EMPTY\n")
+        print("do_infer(): EMPTY.")
+        sys.stdout.flush()
+        return
 
     # ------------------------------------------------------
     # Save raw predictions to a dataframe
