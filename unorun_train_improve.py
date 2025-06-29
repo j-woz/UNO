@@ -1,5 +1,6 @@
 
 from pathlib import Path
+import sys
 import time
 
 from improvelib.applications.drug_response_prediction.config \
@@ -41,21 +42,27 @@ def main():
 
 def run(params):
 
+    print("unorun.run() ...")
+    sys.stdout.flush()
+
     (tr_ge, tr_md, tr_rsp, num_ge_columns, num_md_columns) = \
         load_data(params, stage="train")
 
     (vl_ge, vl_md, vl_rsp, num_ge_columns, num_md_columns) = \
         load_data(params, stage="val")
 
-    model, val_scores = do_train(params,
-                                 tr_ge, tr_md, tr_rsp,
-                                 vl_ge, vl_md, vl_rsp,
-                                 num_ge_columns, num_md_columns)
+    model, val_scores, history = do_train(params,
+                                          tr_ge, tr_md, tr_rsp,
+                                          vl_ge, vl_md, vl_rsp,
+                                          num_ge_columns,
+                                          num_md_columns)
 
     (test_ge, test_md, test_rsp, num_ge_columns, num_md_columns) = \
         load_data(params, stage="test")
 
     do_infer(params, model, test_ge, test_md, test_rsp)
+
+    return history
 
 
 def initialize_parameters():
