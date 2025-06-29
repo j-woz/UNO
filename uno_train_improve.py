@@ -402,7 +402,7 @@ def do_train(params: Dict,
     if "loss" in history.history:
         history_length = len(history.history["loss"])
         print("history_length: %i" % history_length)
-        history_expected = args.epochs - initial_epoch
+        history_expected = epochs - initial_epoch
         if history_length == history_expected:
             msg = "stopping: complete"
         elif history_length < history_expected:
@@ -444,7 +444,7 @@ def do_train(params: Dict,
             output_dir=params["output_dir"]
         )
         
-    return model, val_scores
+    return model, val_scores, history
 
 
 def initialize_parameters():
