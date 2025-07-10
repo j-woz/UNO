@@ -217,6 +217,9 @@ def subset_data(rsp: pd.DataFrame, stage: str, total_num_samples: int, stage_pro
     
 
 def merge(rsp, ge, md, indices, params, preserve_order=False, debug=False):
+    # preserve_order = False
+    preserve_order = True
+    # print("merge: debug=%r preserve_order=%r" % (debug, preserve_order))
     if preserve_order:
         # Add an 'order' column to 'rsp' to keep track of the original order... 
         # sometimes merging messes up the order when the 'on' column is not unique, which matters for comparing to the original rsp
@@ -227,9 +230,11 @@ def merge(rsp, ge, md, indices, params, preserve_order=False, debug=False):
         rsp_for_merge = rsp.iloc[indices]
 
     # Perform merging operations
+
+    # print("rsp4m: " + str(rsp_for_merge.shape))
     merged_df = rsp_for_merge.merge(ge, on=params["canc_col_name"], how="inner")
     merged_df = merged_df.merge(md, on=params["drug_col_name"], how="inner")
-
+    
     # Drop the columns used for merging, if necessary
     merged_df.drop([params["canc_col_name"], params["drug_col_name"]], axis=1, inplace=True)
 
@@ -254,6 +259,10 @@ def merge(rsp, ge, md, indices, params, preserve_order=False, debug=False):
 
 def data_merge_generator(rsp, ge, md, batch_size, params, shuffle=False, peek=False, merge_preserve_order=False, verbose=False):
     num_samples = len(rsp)
+    print("num_samples: %i" % num_samples)
+    # print("batch_size: %i" % batch_size)
+    # print("peek: %r" % peek)
+        
     indices = np.arange(num_samples)
     if shuffle:
         np.random.shuffle(indices)
@@ -265,7 +274,7 @@ def data_merge_generator(rsp, ge, md, batch_size, params, shuffle=False, peek=Fa
             if verbose:
                 print(f"Generating peeking batch up to index {end}")
             batch_indices = indices[:end]
-            batch_x, batch_y = merge(rsp, ge, md, batch_indices, params, preserve_order=merge_preserve_order, debug=params['train_debug'])
+            batch_x, batch_y = merge(rsp, ge, md, batch_indices, params, preserve_order=merge_preserve_order, debug=False) # params['train_debug']
             peek = False
             yield (batch_x, batch_y)
 
@@ -347,6 +356,8 @@ def batch_predict(model, data_generator, steps, flatten=True, verbose=False):
     for _ in range(steps):
         # print("Batch Predict get next")
         x, y = next(data_generator)
+        # print("x: " + str(x))
+        # print("y: " + str(y))
         pred = model.predict(x, verbose=0)
         if flatten:
             pred = pred.flatten()

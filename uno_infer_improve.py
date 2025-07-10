@@ -5,6 +5,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Dict
+import traceback
 
 # Import required modules from improvelib
 from improvelib.applications.drug_response_prediction.config import DRPInferConfig
@@ -26,7 +27,7 @@ from uno_utils_improve import (
 )
 
 from mae_poly_loss import mae_poly_loss
-from uno_train_improve import import_custom_loss_fn, load_data
+from uno_train_improve import import_custom_loss_fn, read_df
 
 # Set filepath to the directory where the script is located
 filepath = Path(__file__).resolve().parent  
@@ -47,6 +48,12 @@ model_infer_params = []
 # Combine both parameter lists to pass to frm.initialize_parameters() in the main().
 infer_params = app_infer_params + model_infer_params
 
+# # data_cache[train|val|test|merged][ge|md|rsp] = None|DataFrame
+# data_cache = None
+
+merged_ge = None
+merged_md = None
+
 
 def run(params: Dict):
     """
@@ -59,12 +66,43 @@ def run(params: Dict):
         bool: True if inference completes successfully.
     """
 
-    (ge, md, rsp, num_ge_columns, num_md_columns) = \
-        load_data(params, stage="test")
+    global merged_ge, merged_md
+    
+    # Read test RSPs (small)
+    test_rsp = read_df(params, stage="test", label="rsp")
+    print("infer: run(): test_rsp:   " + str(test_rsp))
 
+    # Read merged GE, MD if needed (large)
+    if merged_ge is None:
+        merged_ge = read_df(params, stage="merged", label="ge")
+        print("infer: run(): merged_ge:   " + str(merged_ge))
+    if merged_md is None:
+        merged_md = read_df(params, stage="merged", label="md")
+        print("infer: run(): merged_md:   " + str(merged_md))
+    
     model = do_load_model(params)
     
-    do_infer(params, model, ge, md, rsp)
+    do_infer(params, model, merged_ge, merged_md, test_rsp)
+
+
+# def data_cache_init():
+#     """ Conditionally initialize and return data_cache """
+#     global data_cache
+#     if data_cache is not None: return data_cache
+    
+#     data_cache = {}
+#     for key1 in ["train", "val", "test", "merged"]:
+#         data_cache[key1] = {}
+#         for key2 in ["ge", "md", "rsp"]:
+#             data_cache[key2] = None
+#     return data_cache
+
+
+# def load_merged(data_cache):
+#     for label in ["ge", "md"]:
+#         if data_cache["merged"][label] is None:
+#             data_cache["merged"][label] = \
+#                 read_df(params, stage="merged", label)
 
     
 def do_load_model(params):
@@ -97,25 +135,35 @@ def do_load_model(params):
 
     
 def do_infer(params, model, ge, md, rsp):
+
+    print("do_infer(): RSPs: %i ..." % len(rsp))
     
     # Create data generator for batch predictions
     generator_batch_size = params["generator_batch_size"]
     test_steps = int(np.ceil(len(rsp) / generator_batch_size))
+    
     test_gen = data_merge_generator(
         rsp, ge, md, generator_batch_size, 
-        params, merge_preserve_order=True, verbose=False
+        params, merge_preserve_order=True, verbose=True
     )
-
+  
     # Perform batch predictions
     try:
         test_pred, test_true = batch_predict(model, test_gen, test_steps)
     except ValueError as e:
-        print("ValueError in batch_predict(): \n" + str(e))
-        sys.stdout.flush()
+        print("ValueError in batch_predict(): \n" + str(e),
+              flush=True)
         output_dir = params["output_dir"]
         with open(output_dir + "/test-empty.txt", "w") as fp:
             fp.write("EMPTY\n")
-        print("do_infer(): EMPTY.")
+        print("do_infer(): EMPTY.", flush=True)
+
+        # Dump stack:
+        info = sys.exc_info()
+        s = traceback.format_tb(info[2])
+        sys.stdout.write('\n\nEXCEPTION in batch_predict(): \n' +
+                         repr(e) + ' ... \n' + ''.join(s))
+        sys.stdout.write('\n')
         sys.stdout.flush()
         return
 
@@ -123,26 +171,40 @@ def do_infer(params, model, ge, md, rsp):
     # Save raw predictions to a dataframe
     # ------------------------------------------------------
     frm.store_predictions_df(
-        y_true=test_true, 
-        y_pred=test_pred, 
+        y_true=test_true,
+        y_pred=test_pred,
         stage="test",
         y_col_name=params["y_col_name"],
         output_dir=params["output_dir"],
-        input_dir=params["input_data_dir"]
+        input_dir=params["input_dir"]
     )
 
     # ------------------------------------------------------
     # Compute and save performance scores (optional)
     # ------------------------------------------------------
-    if params.get("calc_infer_scores", False):
-        test_scores = frm.compute_performance_scores(
-            y_true=test_true, 
-            y_pred=test_pred, 
-            stage="test",
-            metric_type=params["metric_type"],
-            output_dir=params["output_dir"]
-        )
-        
+    if True: # params.get("calc_infer_scores", False):
+        print("do_infer(): output_dir: " + params["output_dir"])
+        try:
+            test_scores = frm.compute_performance_scores(
+                y_true=test_true, 
+                y_pred=test_pred, 
+                stage="test",
+                metric_type=params["metric_type"],
+                output_dir=params["output_dir"]
+            )
+        except ValueError as e:
+            print("ValueError in compute_performance_scores(): \n" + str(e),
+                  flush=True)
+            output_dir = params["output_dir"]
+            with open(output_dir + "/NaN.txt", "w") as fp:
+                fp.write("NaN\n")
+            print("do_infer(): NaN.", flush=True)
+            return
+            
+
+    print("do_infer(): DONE.")
+    sys.stdout.flush()
+
     return True
 
 

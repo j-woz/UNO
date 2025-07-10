@@ -170,6 +170,10 @@ preprocess_params = app_preproc_params + model_preproc_params
 train_params = app_train_params + model_train_params
 metrics_list = ["mse", "rmse", "pcc", "scc", "r2"]
 
+merged_ge = None
+merged_md = None
+
+
 def read_architecture(params, hyperparam_space, arch_type):
     """Setup architecture for cancer, drug, and interaction layers."""
     layers_size = []
@@ -215,15 +219,27 @@ def import_custom_loss_fn(params):
 def run(params: Dict):
     """Run model training."""
 
-    (tr_ge, tr_md, tr_rsp, num_ge_columns, num_md_columns) = \
-        load_data(params, stage="train")
-         
-    (vl_ge, vl_md, vl_rsp, num_ge_columns, num_md_columns) = \
-        load_data(params, stage="val")
+    global merged_ge, merged_md
+    
+    # Read merged GE, MD if needed (large)
+    if merged_ge is None:
+        merged_ge = read_df(params, stage="merged", label="ge")
+        print("train: run(): merged_ge:  " + str(merged_ge.shape))
+    if merged_md is None:
+        merged_md = read_df(params, stage="merged", label="md")
+        print("train: run(): merged_md:  " + str(merged_md.shape))
 
+    tr_rsp = read_df(params, stage="train", label="rsp")
+    print("train: run(): tr_rsp:     " + str(tr_rsp.shape))
+    vl_rsp = read_df(params, stage="val", label="rsp")
+    print("train: run(): vl_rsp:     " + str(vl_rsp.shape))
+
+    num_ge_columns, num_md_columns = \
+        get_column_lengths(params, merged_ge, merged_md, tr_rsp)
+    
     do_train(params, 
-             tr_ge, tr_md, tr_rsp, 
-             vl_ge, vl_md, vl_rsp,
+             merged_ge, merged_md, tr_rsp, 
+             merged_ge, merged_md, vl_rsp,
              num_ge_columns, num_md_columns)
 
     
@@ -392,9 +408,9 @@ def do_train(params: Dict,
         callbacks=[r2_callback, lr_scheduler, reduce_lr, early_stopping, ckpt],
         initial_epoch=initial_epoch
     )
+    epoch_end_time = time.time()
     print("model.fit() done")
     sys.stdout.flush()
-    epoch_end_time = time.time()
 
     global time_per_epoch
     time_per_epoch = 0
@@ -413,11 +429,13 @@ def do_train(params: Dict,
         time_per_epoch = \
             (epoch_end_time - epoch_start_time) / history_length
 
-    modelpath = str(modelpath)
-    print("save to: " + str(modelpath))
-    
     # Save model
-    model.save(modelpath)
+    # modelpath = str(modelpath) + ".h5"
+    # print("save to: " + str(modelpath))
+    # s0 = time.time()
+    # model.save(modelpath)
+    # s1 = time.time()
+    # print("save time: %8.3f" % (s1-s0))
 
     # Make predictions
     val_pred, val_true = batch_predict(
@@ -448,6 +466,7 @@ def do_train(params: Dict,
 
 
 def initialize_parameters():
+    global preprocess_params
     additional_definitions = preprocess_params + train_params
     cfg = DRPTrainConfig()
     params = cfg.initialize_parameters(
@@ -459,21 +478,22 @@ def initialize_parameters():
     return params
 
 
-def load_data(params, stage):
+def load_data_suite(params, stage):
+    """
+    Load a suite (train, val, test) of data from input_dir
+    May perform subsetting
+    Calculates input column sizes for neural networks
+    returns (ge, md, rsp, num_ge_columns, num_md_columns)
+    """
     # Create file names and load data
-    data_format = params["data_format"]
+
     train_debug = params["train_debug"]
     train_subset_data = params["train_subset_data"]
-    
-    data_fname = frm.build_ml_data_file_name(data_format=data_format,
-                                             stage=stage)
-    ge_fname = f"ge_{data_fname}"
-    md_fname = f"md_{data_fname}"
-    rsp_fname = f"rsp_{data_fname}"
-    ge = pd.read_parquet(Path(params["input_dir"])/ge_fname)
-    md = pd.read_parquet(Path(params["input_dir"])/md_fname)
-    rsp = pd.read_parquet(Path(params["input_dir"])/rsp_fname)
 
+    ge = read_df(params, stage, "ge")
+    md = read_df(params, stage, "md")
+    rsp = read_df(params, stage, "rsp")
+    
     if train_subset_data:
         total_num_samples = 5000
         stage_proportions = {"train": 0.8, "val": 0.1, "test": 0.1}
@@ -483,8 +503,28 @@ def load_data(params, stage):
             rsp = subset_data(vl_rsp, "Validation", total_num_samples, stage_proportions)
 
     if train_debug:
-        print("DATA %s: " % stage, rsp.head(), rsp.shape)
+        print("DATA RSP %s: " % stage, rsp.shape) # rsp.head(), 
 
+    num_ge_columns, num_md_columns = get_column_lengths(ge, md, rsp)
+        
+    return (ge, md, rsp,
+            num_ge_columns, num_md_columns)
+
+
+def read_df(params, stage, label):
+    data_format = params["data_format"]
+    directory = params["input_dir"]
+    data_fname = frm.build_ml_data_file_name(data_format=data_format,
+                                             stage=stage)
+    label_fname = f"{label}_{data_fname}"
+    print("load_data: %-7s input_dir: %s name: %s" %
+          (stage, directory, data_fname))
+    df = pd.read_parquet(Path(directory) / label_fname)
+    return df
+
+
+def get_column_lengths(params, ge, md, rsp):
+    train_debug = params["train_debug"]
     # Merge one row to get feature sets    
     row = rsp.iloc[0:1]
     merged_row = pd.merge(row, ge, on=params["canc_col_name"], how="inner")
@@ -494,9 +534,7 @@ def load_data(params, stage):
 
     num_ge_columns = len([col for col in merged_row.columns if col.startswith('ge')])
     num_md_columns = len([col for col in merged_row.columns if col.startswith('mordred')])
-
-    return (ge, md, rsp,
-            num_ge_columns, num_md_columns)
+    return num_ge_columns, num_md_columns
 
 
 def main(args):
